@@ -1,0 +1,19 @@
+{
+  "auto_trade_enabled": false,
+  "force_full_close": true,
+  "force_fixed_position": true,
+  "fixed_leverage": 100,
+  "fixed_margin_ratios": [0.02, 0.03],
+  "risk_control": {
+    "single_order_max_margin_ratio": 0.03,
+    "total_max_margin_ratio": 0.05,
+    "disable_risk_control": false
+  },
+  "description": {
+    "force_full_close": "强制全平开关：true=收到平仓信号默认全平，false=按信号比例平仓",
+    "force_fixed_position": "固定开仓参数开关：true=强制使用固定倍数和比例，false=从信号中提取",
+    "fixed_leverage": "固定杠杆倍数（force_fixed_position=true时生效）",
+    "fixed_margin_ratios": "固定每单保证金比例，第1单2%、第2单3%",
+    "risk_control": "风控设置：单笔保证金比例上限、总保证金比例上限、是否禁用风控,**禁用开关**：disable_risk_control=true时，两个限制都不生效"
+  }
+}

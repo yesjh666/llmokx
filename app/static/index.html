@@ -1,0 +1,724 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LLMOKX 交易工具</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+<div class="app-container">
+    <!-- 侧边栏 -->
+    <div class="sidebar">
+        <div class="sidebar-header">
+            <h1>🦞 LLMOKX</h1>
+            <p>交易工具管理平台</p>
+        </div>
+        <div class="sidebar-menu">
+            <div class="menu-item active" data-page="dashboard" onclick="showPage('dashboard')">
+                <span class="menu-icon">📊</span>
+                <span>仪表盘</span>
+            </div>
+            <div class="menu-item" data-page="llm" onclick="showPage('llm')">
+                <span class="menu-icon">🤖</span>
+                <span>LLM分析</span>
+            </div>
+            <div class="menu-item" data-page="prompts" onclick="showPage('prompts')">
+                <span class="menu-icon">📝</span>
+                <span>Prompt管理</span>
+            </div>
+            <div class="menu-item" data-page="forward" onclick="showPage('forward')">
+                <span class="menu-icon">📤</span>
+                <span>转发管理</span>
+            </div>
+            <div class="menu-item" data-page="notification" onclick="showPage('notification')">
+                <span class="menu-icon">🔔</span>
+                <span>通知管理</span>
+            </div>
+            <div class="menu-item" data-page="logs" onclick="showPage('logs')">
+                <span class="menu-icon">📋</span>
+                <span>日志查看</span>
+            </div>
+            <div class="menu-item" data-page="update" onclick="showPage('update')">
+                <span class="menu-icon">🔄</span>
+                <span>升级管理</span>
+            </div>
+            <div class="menu-item" data-page="settings" onclick="showPage('settings')">
+                <span class="menu-icon">⚙️</span>
+                <span>系统设置</span>
+            </div>
+        </div>
+        <div class="sidebar-footer">
+            <div>版本 v1.0.0</div>
+            <div><a href="/docs" target="_blank" style="color:#909399;">API文档</a></div>
+        </div>
+    </div>
+
+    <!-- 主内容 -->
+    <div class="main-content">
+
+        <!-- 仪表盘 -->
+        <div class="page active" id="page-dashboard">
+            <div class="page-header">
+                <h2>📊 仪表盘</h2>
+                <p>系统状态概览</p>
+            </div>
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="stat-icon">🤖</div>
+                    <div class="stat-label">LLM分析</div>
+                    <div class="stat-value" id="stat-llm-status">--</div>
+                    <div style="margin-top:8px;font-size:13px;">
+                        模型: <span id="stat-llm-model">--</span><br>
+                        API: <span id="stat-llm-api">--</span>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon">📤</div>
+                    <div class="stat-label">转发功能</div>
+                    <div class="stat-value" id="stat-forward-status">--</div>
+                    <div style="margin-top:8px;font-size:13px;">
+                        目标数: <span id="stat-forward-targets">--</span>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon">🔔</div>
+                    <div class="stat-label">通知功能</div>
+                    <div class="stat-value" id="stat-notify-status">--</div>
+                    <div style="margin-top:8px;font-size:13px;">
+                        微信: <span id="stat-notify-wechat">--</span><br>
+                        Telegram: <span id="stat-notify-telegram">--</span>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon">🖥️</div>
+                    <div class="stat-label">系统信息</div>
+                    <div style="margin-top:8px;font-size:13px;">
+                        运行时间: <span id="stat-uptime">--</span><br>
+                        Python: <span id="stat-python">--</span>
+                    </div>
+                </div>
+            </div>
+            <div class="card">
+                <div class="card-header">
+                    <span class="card-title">快速操作</span>
+                </div>
+                <div style="display:flex;gap:10px;flex-wrap:wrap;">
+                    <button class="btn btn-primary" onclick="showPage('llm')">配置LLM</button>
+                    <button class="btn btn-success" onclick="showPage('prompts')">管理Prompt</button>
+                    <button class="btn btn-warning" onclick="showPage('forward')">转发设置</button>
+                    <button class="btn btn-default" onclick="showPage('notification')">通知设置</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- LLM分析 -->
+        <div class="page" id="page-llm">
+            <div class="page-header">
+                <h2>🤖 LLM分析配置</h2>
+                <p>配置大模型API连接参数</p>
+            </div>
+            <div class="card">
+                <div class="card-header">
+                    <span class="card-title">功能开关</span>
+                    <label class="switch">
+                        <input type="checkbox" id="llm-enabled">
+                        <span class="slider"></span>
+                    </label>
+                </div>
+            </div>
+            <div class="card">
+                <div class="card-header"><span class="card-title">模型配置</span></div>
+                <div class="form-group">
+                    <label class="form-label">API提供商</label>
+                    <select class="form-select" id="llm-provider">
+                        <option value="openai">OpenAI兼容接口</option>
+                        <option value="anthropic">Anthropic (Claude)</option>
+                        <option value="custom">自定义</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">API Key</label>
+                    <input type="password" class="form-input" id="llm-api-key" placeholder="sk-xxxxxxxxxxxx">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">API Base URL</label>
+                    <input type="text" class="form-input" id="llm-api-base" placeholder="https://api.openai.com/v1">
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label class="form-label">主模型</label>
+                        <input type="text" class="form-input" id="llm-model" placeholder="gpt-4o-mini">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">备用模型（重试时使用）</label>
+                        <input type="text" class="form-input" id="llm-fallback-model" placeholder="gpt-3.5-turbo">
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label class="form-label">最大重试次数</label>
+                        <input type="number" class="form-input" id="llm-max-retries" value="2">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">温度 (Temperature)</label>
+                        <input type="number" class="form-input" id="llm-temperature" value="0.3" step="0.1" min="0" max="2">
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label class="form-label">最大Token数</label>
+                        <input type="number" class="form-input" id="llm-max-tokens" value="800">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">超时时间（秒）</label>
+                        <input type="number" class="form-input" id="llm-timeout" value="90">
+                    </div>
+                </div>
+                <div style="display:flex;gap:10px;">
+                    <button class="btn btn-primary" onclick="saveLLMConfig()">保存配置</button>
+                    <button class="btn btn-default" onclick="testLLMConnection()">测试连接</button>
+                </div>
+            </div>
+            <div class="card">
+                <div class="card-header"><span class="card-title">测试分析</span></div>
+                <div class="form-group">
+                    <label class="form-label">上下文信息（持仓/挂单等）</label>
+                    <input type="text" class="form-input" id="analyze-context" placeholder="无持仓无挂单">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">输入消息</label>
+                    <textarea class="form-textarea" id="analyze-input" rows="3" placeholder="BTC 做多 60000，100倍2%保证金，止盈65000，止损58000"></textarea>
+                </div>
+                <div style="display:flex;gap:10px;margin-bottom:12px;">
+                    <button class="btn btn-primary" onclick="analyzeTest()">分析</button>
+                    <button class="btn btn-default" onclick="document.getElementById('analyze-result').innerHTML=''">清空</button>
+                </div>
+                <div id="analyze-result"></div>
+            </div>
+        </div>
+
+        <!-- Prompt管理 -->
+        <div class="page" id="page-prompts">
+            <div class="page-header">
+                <h2>📝 Prompt管理</h2>
+                <p>管理LLM分析的Prompt规则和示例</p>
+            </div>
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="stat-label">内置规则</div>
+                    <div class="stat-value" id="prompt-rules-count">0</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">内置示例</div>
+                    <div class="stat-value" id="prompt-examples-count">0</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">自定义规则</div>
+                    <div class="stat-value" id="prompt-custom-rules-count">0</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">自定义示例</div>
+                    <div class="stat-value" id="prompt-custom-examples-count">0</div>
+                </div>
+            </div>
+            <div class="card">
+                <div class="card-header">
+                    <span class="card-title">系统提示词</span>
+                    <button class="btn btn-sm btn-default" onclick="reloadPrompts()">重新加载</button>
+                </div>
+                <textarea class="form-textarea" id="prompt-system" rows="3" readonly style="background:#f5f7fa;"></textarea>
+            </div>
+            <div class="card">
+                <div class="card-header">
+                    <span class="card-title">规则列表</span>
+                    <button class="btn btn-sm btn-primary" onclick="showAddRuleModal()">+ 添加规则</button>
+                </div>
+                <div style="margin-bottom:20px;">
+                    <h4 style="margin-bottom:10px;color:#606266;">自定义规则</h4>
+                    <div id="custom-rules-list"></div>
+                </div>
+                <div>
+                    <h4 style="margin-bottom:10px;color:#909399;">内置规则</h4>
+                    <div id="builtin-rules-list" style="max-height:400px;overflow-y:auto;"></div>
+                </div>
+            </div>
+            <div class="card">
+                <div class="card-header">
+                    <span class="card-title">示例列表</span>
+                    <button class="btn btn-sm btn-primary" onclick="showAddExampleModal()">+ 添加示例</button>
+                </div>
+                <div style="margin-bottom:20px;">
+                    <h4 style="margin-bottom:10px;color:#606266;">自定义示例</h4>
+                    <div id="custom-examples-list"></div>
+                </div>
+                <div>
+                    <h4 style="margin-bottom:10px;color:#909399;">内置示例</h4>
+                    <div id="builtin-examples-list" style="max-height:500px;overflow-y:auto;"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 转发管理 -->
+        <div class="page" id="page-forward">
+            <div class="page-header">
+                <h2>📤 转发管理</h2>
+                <p>配置意图转发目标</p>
+            </div>
+            <div class="card">
+                <div class="card-header">
+                    <span class="card-title">功能开关</span>
+                    <label class="switch">
+                        <input type="checkbox" id="forward-enabled">
+                        <span class="slider"></span>
+                    </label>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">跳过的意图类型（逗号分隔）</label>
+                    <input type="text" class="form-input" id="forward-skip-intents" placeholder="chat, query">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Telegram Bot Token</label>
+                    <input type="password" class="form-input" id="forward-bot-token" placeholder="Bot Token">
+                </div>
+                <div class="form-group">
+                    <label>
+                        <input type="checkbox" id="forward-userbot-enabled"> 启用 Userbot（以用户身份发送）
+                    </label>
+                </div>
+                <button class="btn btn-primary" onclick="saveForwardConfig()">保存配置</button>
+            </div>
+            <div class="card">
+                <div class="card-header"><span class="card-title">转发目标</span></div>
+                <div id="forward-targets-list" style="margin-bottom:20px;"></div>
+                <hr style="border:none;border-top:1px solid #ebeef5;margin:16px 0;">
+                <h4 style="margin-bottom:10px;color:#606266;">添加新目标</h4>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label class="form-label">通道</label>
+                        <select class="form-select" id="new-target-channel">
+                            <option value="openclaw-telegram">Telegram</option>
+                            <option value="openclaw-weixin">微信</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">目标ID</label>
+                        <input type="text" class="form-input" id="new-target-id" placeholder="-100xxxxxxxxxx">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">描述</label>
+                        <input type="text" class="form-input" id="new-target-desc" placeholder="群名称">
+                    </div>
+                </div>
+                <button class="btn btn-primary" onclick="addForwardTarget()">添加</button>
+            </div>
+        </div>
+
+        <!-- 通知管理 -->
+        <div class="page" id="page-notification">
+            <div class="page-header">
+                <h2>🔔 通知管理</h2>
+                <p>配置微信和Telegram双通道并行推送</p>
+            </div>
+
+            <!-- 全局开关 -->
+            <div class="card">
+                <div class="card-header">
+                    <span class="card-title">全局功能开关</span>
+                    <label class="switch">
+                        <input type="checkbox" id="notify-enabled">
+                        <span class="slider"></span>
+                    </label>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label class="form-label">最大重试次数</label>
+                        <input type="number" class="form-input" id="notify-max-retries" value="3">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">重试间隔（秒）</label>
+                        <input type="number" class="form-input" id="notify-retry-interval" value="5">
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>
+                        <input type="checkbox" id="notify-parallel" checked> 双通道并行发送（同时推送微信和Telegram）
+                    </label>
+                </div>
+                <button class="btn btn-primary" onclick="saveNotificationGlobalConfig()">保存全局配置</button>
+            </div>
+
+            <!-- 微信通道 -->
+            <div class="card">
+                <div class="card-header">
+                    <span class="card-title">💬 微信通道</span>
+                    <label class="switch">
+                        <input type="checkbox" id="notify-wechat-enabled">
+                        <span class="slider"></span>
+                    </label>
+                </div>
+                <div class="form-group">
+                    <label>
+                        <input type="checkbox" id="notify-use-openclaw" checked> 使用 openclaw 命令发送（否则使用Webhook）
+                    </label>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label class="form-label">微信Target</label>
+                        <input type="text" class="form-input" id="notify-wechat-target" placeholder="o9cq80zZk50Q33Snd8zOZ5vlAEQ4@im.wechat">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">微信Account</label>
+                        <input type="text" class="form-input" id="notify-wechat-account" placeholder="ea3465f35dfb-im-bot">
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">微信通道</label>
+                    <input type="text" class="form-input" id="notify-wechat-channel" placeholder="openclaw-weixin">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Webhook URL（不使用openclaw时生效）</label>
+                    <input type="text" class="form-input" id="notify-webhook-url" placeholder="https://qyapi.weixin.qq.com/cgi-bin/webhook/send?key=xxx">
+                </div>
+                <button class="btn btn-primary" onclick="saveWechatConfig()">保存微信配置</button>
+                <button class="btn btn-success" onclick="testNotification('wechat')" style="margin-left:8px;">测试微信</button>
+            </div>
+
+            <!-- Telegram通道 -->
+            <div class="card">
+                <div class="card-header">
+                    <span class="card-title">✈️ Telegram通道</span>
+                    <label class="switch">
+                        <input type="checkbox" id="notify-telegram-enabled">
+                        <span class="slider"></span>
+                    </label>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label class="form-label">Bot Token</label>
+                        <input type="password" class="form-input" id="notify-telegram-bot-token" placeholder="123456789:ABCdefGHIjklMNOpqrsTUVwxyz">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Chat ID</label>
+                        <input type="text" class="form-input" id="notify-telegram-chat-id" placeholder="-1001234567890">
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label class="form-label">消息格式</label>
+                        <select class="form-select" id="notify-telegram-parse-mode">
+                            <option value="HTML">HTML</option>
+                            <option value="Markdown">Markdown</option>
+                            <option value="MarkdownV2">MarkdownV2</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>
+                            <input type="checkbox" id="notify-telegram-disable-notification"> 静音发送（不振动）
+                        </label>
+                    </div>
+                </div>
+                <button class="btn btn-primary" onclick="saveTelegramConfig()">保存Telegram配置</button>
+                <button class="btn btn-success" onclick="testNotification('telegram')" style="margin-left:8px;">测试Telegram</button>
+            </div>
+
+            <!-- 双通道测试 -->
+            <div class="card">
+                <div class="card-header">
+                    <span class="card-title">📢 双通道测试</span>
+                </div>
+                <div style="display:flex;gap:10px;">
+                    <button class="btn btn-success" onclick="testNotification('all')">同时测试微信 + Telegram</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- 日志查看 -->
+        <div class="page" id="page-logs">
+            <div class="page-header">
+                <h2>📋 日志查看</h2>
+                <p>查看各模块运行日志和操作记录</p>
+            </div>
+
+            <!-- 日志文件概览 -->
+            <div class="card">
+                <div class="card-header">
+                    <span class="card-title">日志文件概览</span>
+                    <button class="btn btn-sm btn-default" onclick="loadLogFiles()">刷新</button>
+                </div>
+                <div id="log-files-list"></div>
+            </div>
+
+            <!-- 统计面板 -->
+            <div class="card">
+                <div class="card-header">
+                    <span class="card-title">操作统计</span>
+                    <select id="log-stats-module" class="form-select" style="width:auto;" onchange="loadLogStats()">
+                        <option value="llm_analysis">LLM分析</option>
+                        <option value="forward">转发</option>
+                        <option value="notification">通知</option>
+                    </select>
+                </div>
+                <div id="log-stats-display"></div>
+            </div>
+
+            <!-- 文本日志查看 -->
+            <div class="card">
+                <div class="card-header">
+                    <span class="card-title">实时日志</span>
+                    <div style="display:flex;gap:8px;align-items:center;">
+                        <select id="log-tail-module" class="form-select" style="width:auto;">
+                            <option value="app">应用主日志</option>
+                            <option value="llm_analysis">LLM分析</option>
+                            <option value="forward">转发</option>
+                            <option value="notification">通知</option>
+                        </select>
+                        <select id="log-tail-level" class="form-select" style="width:auto;">
+                            <option value="">全部级别</option>
+                            <option value="INFO">INFO</option>
+                            <option value="WARNING">WARNING</option>
+                            <option value="ERROR">ERROR</option>
+                        </select>
+                        <select id="log-tail-lines" class="form-select" style="width:auto;">
+                            <option value="100">100行</option>
+                            <option value="200" selected>200行</option>
+                            <option value="500">500行</option>
+                            <option value="1000">1000行</option>
+                        </select>
+                        <button class="btn btn-sm btn-primary" onclick="loadLogTail()">查看</button>
+                        <label style="font-size:12px;">
+                            <input type="checkbox" id="log-auto-refresh"> 自动刷新(5秒)
+                        </label>
+                    </div>
+                </div>
+                <div id="log-tail-display"></div>
+            </div>
+
+            <!-- 结构化操作记录 -->
+            <div class="card">
+                <div class="card-header">
+                    <span class="card-title">操作记录详情（结构化）</span>
+                    <div style="display:flex;gap:8px;align-items:center;">
+                        <select id="log-records-module" class="form-select" style="width:auto;">
+                            <option value="llm_analysis">LLM分析</option>
+                            <option value="forward">转发</option>
+                            <option value="notification">通知</option>
+                        </select>
+                        <select id="log-records-limit" class="form-select" style="width:auto;">
+                            <option value="20">20条</option>
+                            <option value="50" selected>50条</option>
+                            <option value="100">100条</option>
+                        </select>
+                        <button class="btn btn-sm btn-primary" onclick="loadLogRecords()">查看</button>
+                    </div>
+                </div>
+                <div id="log-records-display"></div>
+            </div>
+        </div>
+
+        <!-- 升级管理 -->
+        <div class="page" id="page-update">
+            <div class="page-header">
+                <h2>🔄 升级管理</h2>
+                <p>检查更新、自动升级、版本回滚</p>
+            </div>
+
+            <!-- 版本信息 -->
+            <div class="card">
+                <div class="card-header">
+                    <span class="card-title">当前版本信息</span>
+                    <button class="btn btn-sm btn-default" onclick="loadUpdateVersion()">刷新</button>
+                </div>
+                <div id="update-version-display"></div>
+            </div>
+
+            <!-- 检查更新 -->
+            <div class="card">
+                <div class="card-header">
+                    <span class="card-title">检查更新</span>
+                    <button class="btn btn-sm btn-primary" onclick="checkUpdates()">检查更新</button>
+                </div>
+                <div id="update-check-display">
+                    <div class="empty-state">
+                        <div class="empty-icon">🔄</div>
+                        <div>点击"检查更新"查看是否有新版本</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 执行升级 -->
+            <div class="card">
+                <div class="card-header">
+                    <span class="card-title">执行升级</span>
+                </div>
+                <div style="margin-bottom:16px;">
+                    <div style="background:#fdf6ec;padding:12px;border-radius:6px;border-left:3px solid #e6a23c;margin-bottom:12px;">
+                        <strong>⚠️ 升级提示：</strong><br>
+                        1. 升级前会自动备份当前程序到 <code>backup/</code> 目录<br>
+                        2. <code>config/</code>、<code>data/</code>、<code>logs/</code>、<code>venv/</code> 目录会保留<br>
+                        3. 升级后需要点击"重启服务"使新版本生效<br>
+                        4. 如新版本有问题，可在"版本回滚"中恢复
+                    </div>
+                    <div style="display:flex;gap:10px;">
+                        <button class="btn btn-success" onclick="performUpdate()" id="btn-perform-update">立即升级</button>
+                        <button class="btn btn-warning" onclick="restartService()">重启服务</button>
+                    </div>
+                </div>
+                <div id="update-progress" style="display:none;">
+                    <div style="background:#f5f7fa;padding:12px;border-radius:6px;">
+                        <div id="update-progress-text">升级中...</div>
+                    </div>
+                </div>
+                <div id="update-result"></div>
+            </div>
+
+            <!-- 升级配置 -->
+            <div class="card">
+                <div class="card-header">
+                    <span class="card-title">升级配置</span>
+                    <button class="btn btn-sm btn-primary" onclick="saveUpdateConfig()">保存配置</button>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">升级方式</label>
+                    <select class="form-select" id="update-method">
+                        <option value="release">GitHub Releases（下载压缩包）</option>
+                        <option value="git">Git Pull（拉取最新代码）</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">GitHub 仓库（owner/repo 格式）</label>
+                    <input type="text" class="form-input" id="update-github-repo" placeholder="如 yesjh666/llmokx">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">资源文件名匹配模式（release 方式）</label>
+                    <input type="text" class="form-input" id="update-asset-pattern" placeholder="llmokx-*.tar.gz">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">重启命令</label>
+                    <input type="text" class="form-input" id="update-restart-command" placeholder="systemctl restart llmokx">
+                </div>
+                <div class="form-group">
+                    <label>
+                        <input type="checkbox" id="update-enabled"> 启用自动升级
+                    </label>
+                </div>
+                <div class="form-group">
+                    <label>
+                        <input type="checkbox" id="update-check-on-startup"> 启动时自动检查更新
+                    </label>
+                </div>
+                <div class="form-group">
+                    <label>
+                        <input type="checkbox" id="update-notify-on-update"> 升级后通过微信通知
+                    </label>
+                </div>
+            </div>
+
+            <!-- 版本回滚 -->
+            <div class="card">
+                <div class="card-header">
+                    <span class="card-title">版本回滚</span>
+                    <button class="btn btn-sm btn-default" onclick="loadBackups()">刷新</button>
+                </div>
+                <div id="update-backups-list"></div>
+            </div>
+        </div>
+
+        <!-- 系统设置 -->
+        <div class="page" id="page-settings">
+            <div class="page-header">
+                <h2>⚙️ 系统设置</h2>
+                <p>管理服务器和全局配置</p>
+            </div>
+            <div class="card">
+                <div class="card-header"><span class="card-title">访问控制</span></div>
+                <div class="form-group">
+                    <label>
+                        <input type="checkbox" id="server-auth-enabled"> 启用登录认证
+                    </label>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label class="form-label">用户名</label>
+                        <input type="text" class="form-input" id="server-username" value="admin">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">密码</label>
+                        <input type="password" class="form-input" id="server-password" placeholder="请输入新密码">
+                    </div>
+                </div>
+                <div style="display:flex;gap:10px;">
+                    <button class="btn btn-primary" onclick="saveSettings()">保存设置</button>
+                    <button class="btn btn-default" onclick="reloadAllConfig()">重新加载所有配置</button>
+                </div>
+            </div>
+            <div class="card">
+                <div class="card-header">
+                    <span class="card-title">完整配置预览</span>
+                </div>
+                <div id="all-config-display"></div>
+            </div>
+        </div>
+
+    </div>
+</div>
+
+<!-- 添加规则模态框 -->
+<div class="modal-overlay" id="modal-add-rule" style="display:none;">
+    <div class="modal">
+        <div class="modal-header">
+            <span class="card-title">添加自定义规则</span>
+            <button class="btn btn-sm btn-default" onclick="hideAddRuleModal()">×</button>
+        </div>
+        <div class="modal-body">
+            <div class="form-group">
+                <label class="form-label">规则内容 *</label>
+                <textarea class="form-textarea" id="new-rule-text" rows="3" placeholder="例如：消息提到SOL时，symbol设为SOL-USDT"></textarea>
+            </div>
+            <div class="form-group">
+                <label class="form-label">规则说明</label>
+                <input type="text" class="form-input" id="new-rule-desc" placeholder="规则的简要说明（可选）">
+            </div>
+            <div class="form-group">
+                <label class="form-label">优先级（数字越小越优先）</label>
+                <input type="number" class="form-input" id="new-rule-priority" value="0">
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-default" onclick="hideAddRuleModal()">取消</button>
+            <button class="btn btn-primary" onclick="addCustomRule()">添加</button>
+        </div>
+    </div>
+</div>
+
+<!-- 添加示例模态框 -->
+<div class="modal-overlay" id="modal-add-example" style="display:none;">
+    <div class="modal">
+        <div class="modal-header">
+            <span class="card-title">添加自定义示例</span>
+            <button class="btn btn-sm btn-default" onclick="hideAddExampleModal()">×</button>
+        </div>
+        <div class="modal-body">
+            <div class="form-group">
+                <label class="form-label">示例说明</label>
+                <input type="text" class="form-input" id="new-example-desc" placeholder="例如：SOL开单示例">
+            </div>
+            <div class="form-group">
+                <label class="form-label">输入消息 *</label>
+                <textarea class="form-textarea" id="new-example-input" rows="2" placeholder="例如：SOL 做多 150，止盈180"></textarea>
+            </div>
+            <div class="form-group">
+                <label class="form-label">期望输出JSON *</label>
+                <textarea class="form-textarea" id="new-example-output" rows="5" placeholder='{"intent":"open_position","symbol":"SOL-USDT-SWAP",...}'></textarea>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-default" onclick="hideAddExampleModal()">取消</button>
+            <button class="btn btn-primary" onclick="addCustomExample()">添加</button>
+        </div>
+    </div>
+</div>
+
+<script src="/static/js/app.js"></script>
+</body>
+</html>

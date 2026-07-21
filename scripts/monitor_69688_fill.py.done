@@ -1,0 +1,190 @@
+#!/usr/bin/env python3
+"""
+监控 69688 加仓单成交 → 自动将所有止盈改为 68888
+来源：群消息 2026-04-01 23:31
+"如果69688成交了成本就变成了68888，到时候会给一次68888成本逃跑的机会"
+
+逻辑：
+1. 每30秒检查 69688 挂单是否成交
+2. 成交后 → 所有 OCO 止盈改为 68888
+3. 通知用户 → 通过微信推送
+4. 完成后自动退出
+"""
+
+import sys
+import os
+import time
+import json
+import requests
+
+sys.path.insert(0, '/root/.openclaw/workspace')
+from scripts.okx_auto_trade import get_headers
+
+API_BASE = 'https://www.okx.com'
+TARGET_ORDER_ID = None  # 启动时自动查找
+TARGET_PRICE = '69688'
+NEW_TP = '68888'
+CHECK_INTERVAL = 30  # 秒
+
+def find_69688_order():
+    """查找 69688 的挂单"""
+    path = '/api/v5/trade/orders-pending?instType=MARGIN&instId=BTC-USDT'
+    headers = get_headers('GET', path)
+    resp = requests.get(API_BASE + path, headers=headers, timeout=10)
+    orders = resp.json().get('data', [])
+    for o in orders:
+        if o.get('px') == TARGET_PRICE:
+            return o.get('ordId')
+    return None
+
+def check_order_filled(order_id):
+    """检查订单是否已成交"""
+    # 先查 pending
+    path = '/api/v5/trade/orders-pending?instType=MARGIN&instId=BTC-USDT'
+    headers = get_headers('GET', path)
+    resp = requests.get(API_BASE + path, headers=headers, timeout=10)
+    orders = resp.json().get('data', [])
+    for o in orders:
+        if o.get('ordId') == order_id:
+            return False  # 还在挂着
+
+    # 不在 pending 了，查历史
+    hist_path = f'/api/v5/trade/order?instId=BTC-USDT&ordId={order_id}'
+    hist_headers = get_headers('GET', hist_path)
+    hist_resp = requests.get(API_BASE + hist_path, headers=hist_headers, timeout=10)
+    data = hist_resp.json().get('data', [])
+    if data and data[0].get('state') == 'filled':
+        return True
+    
+    # 可能被取消了
+    if data and data[0].get('state') == 'canceled':
+        return 'canceled'
+    
+    return False
+
+def modify_all_tp_to_68888():
+    """将所有 OCO 止盈改为 68888"""
+    results = []
+    
+    # 查所有 OCO 单
+    algo_path = '/api/v5/trade/orders-algo-pending?instType=MARGIN&instId=BTC-USDT&ordType=oco'
+    algo_headers = get_headers('GET', algo_path)
+    algo_resp = requests.get(API_BASE + algo_path, headers=algo_headers, timeout=10)
+    algos = algo_resp.json().get('data', [])
+    
+    for a in algos:
+        algo_id = a.get('algoId')
+        old_tp = a.get('tpTriggerPx', '')
+        
+        # 修改止盈
+        amend_path = '/api/v5/trade/amend-algos'
+        body = json.dumps({
+            'instId': 'BTC-USDT',
+            'algoId': algo_id,
+            'newTpTriggerPx': NEW_TP
+        })
+        amend_headers = get_headers('POST', amend_path, body)
+        amend_resp = requests.post(API_BASE + amend_path, headers=amend_headers, data=body, timeout=10)
+        result = amend_resp.json()
+        code = result.get('data', [{}])[0].get('sCode', '')
+        msg = result.get('data', [{}])[0].get('sMsg', '')
+        
+        status = '✅' if code == '0' else '❌'
+        results.append(f'{status} OCO {algo_id}: TP {old_tp} → {NEW_TP} (code={code})')
+        print(results[-1])
+    
+    # 查 conditional 单（有止盈的也改）
+    cond_path = '/api/v5/trade/orders-algo-pending?instType=MARGIN&instId=BTC-USDT&ordType=conditional'
+    cond_headers = get_headers('GET', cond_path)
+    cond_resp = requests.get(API_BASE + cond_path, headers=cond_headers, timeout=10)
+    conds = cond_resp.json().get('data', [])
+    
+    for c in conds:
+        if c.get('tpTriggerPx'):
+            algo_id = c.get('algoId')
+            old_tp = c.get('tpTriggerPx', '')
+            amend_path = '/api/v5/trade/amend-algos'
+            body = json.dumps({
+                'instId': 'BTC-USDT',
+                'algoId': algo_id,
+                'newTpTriggerPx': NEW_TP
+            })
+            amend_headers = get_headers('POST', amend_path, body)
+            amend_resp = requests.post(API_BASE + amend_path, headers=amend_headers, data=body, timeout=10)
+            result = amend_resp.json()
+            code = result.get('data', [{}])[0].get('sCode', '')
+            status = '✅' if code == '0' else '❌'
+            results.append(f'{status} COND {algo_id}: TP {old_tp} → {NEW_TP} (code={code})')
+            print(results[-1])
+    
+    return results
+
+def notify_wechat(message):
+    """通过 openclaw 发送微信通知"""
+    try:
+        import subprocess
+        subprocess.run(
+            ['openclaw', 'message', 'send', '--channel', 'openclaw-weixin', '--message', message],
+            timeout=30, capture_output=True
+        )
+    except Exception as e:
+        print(f'⚠️ 微信通知失败: {e}')
+
+def main():
+    print(f'🔍 启动监控: 69688 加仓单成交 → 止盈改 {NEW_TP}')
+    
+    # 找到 69688 挂单
+    order_id = find_69688_order()
+    if not order_id:
+        print('❌ 未找到 69688 挂单，可能已成交或取消')
+        # 检查是否已经成交了（查历史订单）
+        hist_path = '/api/v5/trade/order-history?instType=MARGIN&instId=BTC-USDT'
+        hist_headers = get_headers('GET', hist_path)
+        hist_resp = requests.get(API_BASE + hist_path, headers=hist_headers, timeout=10)
+        history = hist_resp.json().get('data', [])
+        for h in history:
+            if h.get('px') == TARGET_PRICE and h.get('state') == 'filled':
+                print(f'⚡ 69688 已经成交了! ordId={h.get("ordId")}')
+                print('🔄 立即执行止盈修改...')
+                results = modify_all_tp_to_68888()
+                summary = '\n'.join(results)
+                notify_wechat(f'⚡ 69688 加仓单已成交！\n\n止盈已自动改为 {NEW_TP}:\n{summary}')
+                return
+        print('挂单不存在且历史中无成交记录，退出')
+        return
+    
+    print(f'✅ 找到挂单: ordId={order_id}, px={TARGET_PRICE}')
+    print(f'⏳ 每 {CHECK_INTERVAL} 秒检查一次...')
+    
+    while True:
+        try:
+            status = check_order_filled(order_id)
+            
+            if status is True:
+                print(f'\n⚡ 69688 成交了! 开始修改止盈...')
+                results = modify_all_tp_to_68888()
+                summary = '\n'.join(results)
+                notify_wechat(f'⚡ 69688 加仓单已成交！\n\n止盈已自动改为 {NEW_TP}:\n{summary}')
+                print(f'\n✅ 完成，退出监控')
+                return
+            
+            elif status == 'canceled':
+                print(f'\n⚠️ 69688 挂单被取消了，退出监控')
+                notify_wechat(f'⚠️ 69688 加仓挂单被取消，止盈修改监控已停止')
+                return
+            
+            else:
+                now = time.strftime('%H:%M:%S')
+                print(f'[{now}] 69688 未成交，继续监控...')
+            
+            time.sleep(CHECK_INTERVAL)
+            
+        except KeyboardInterrupt:
+            print('\n🛑 手动停止监控')
+            return
+        except Exception as e:
+            print(f'⚠️ 检查异常: {e}')
+            time.sleep(CHECK_INTERVAL)
+
+if __name__ == '__main__':
+    main()

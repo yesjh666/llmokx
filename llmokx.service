@@ -1,0 +1,19 @@
+[Unit]
+Description=LLMOKX Trading Tool
+After=network.target
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/opt/llmokx
+ExecStart=/opt/llmokx/venv/bin/python /opt/llmokx/run.py
+Restart=on-failure
+RestartSec=10
+Environment=PYTHONUNBUFFERED=1
+Environment=HOST=0.0.0.0
+Environment=PORT=8080
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,37 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+*.egg
+dist/
+build/
+*.egg-info
+
+# 虚拟环境
+venv/
+env/
+.venv/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# 日志
+logs/*
+!logs/.gitkeep
+
+# 数据
+data/*
+!data/.gitkeep
+
+# 敏感配置（按需取消注释）
+# config/unified-config.json
+# config/prompts.json
+
+# OS
+.DS_Store
+Thumbs.db

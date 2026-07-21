@@ -1,0 +1,68 @@
+{
+  "llm_analysis": {
+    "enabled": true,
+    "provider": "openai",
+    "api_key": "",
+    "api_base": "https://api.openai.com/v1",
+    "model": "gpt-4o-mini",
+    "fallback_model": "gpt-3.5-turbo",
+    "max_retries": 2,
+    "temperature": 0.3,
+    "max_tokens": 800,
+    "timeout": 90
+  },
+  "forward": {
+    "enabled": true,
+    "targets": [
+      {
+        "channel": "openclaw-telegram",
+        "target": "-1004208828815",
+        "description": "默认转发群"
+      }
+    ],
+    "skip_intents": ["chat", "query"],
+    "telegram_bot_token": "",
+    "userbot_enabled": true,
+    "userbot_config_file": "config/telegram_userbot.json"
+  },
+  "notification": {
+    "enabled": true,
+    "max_retries": 3,
+    "retry_interval": 5,
+    "parallel": true,
+    "wechat": {
+      "enabled": true,
+      "target": "o9cq80zZk50Q33Snd8zOZ5vlAEQ4@im.wechat",
+      "account": "ea3465f35dfb-im-bot",
+      "channel": "openclaw-weixin",
+      "use_openclaw": true,
+      "webhook_url": ""
+    },
+    "telegram": {
+      "enabled": true,
+      "bot_token": "",
+      "chat_id": "",
+      "parse_mode": "HTML",
+      "disable_notification": false
+    }
+  },
+  "server": {
+    "host": "0.0.0.0",
+    "port": 8080,
+    "auth_enabled": false,
+    "username": "admin",
+    "password": "admin123"
+  },
+  "update": {
+    "enabled": true,
+    "check_on_startup": true,
+    "auto_install": false,
+    "check_interval_hours": 24,
+    "github_repo": "",
+    "method": "release",
+    "asset_pattern": "llmokx-*.tar.gz",
+    "preserve_dirs": ["config", "data", "logs", "venv"],
+    "restart_command": "systemctl restart llmokx",
+    "notify_on_update": true
+  }
+}

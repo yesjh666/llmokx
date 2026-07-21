@@ -1,0 +1,24 @@
+# LLMOKX 交易工具 - Python依赖
+
+# Web框架
+fastapi==0.104.1
+
+# ASGI服务器（运行FastAPI）
+uvicorn[standard]==0.24.0
+
+# 异步HTTP客户端（调用大模型API）
+httpx==0.25.2
+
+# 数据校验和序列化
+pydantic==2.5.2
+
+# 可选：Telegram Userbot（以用户身份发送消息）
+# 如需启用Userbot功能，取消下面注释
+# telethon==1.34.0
+
+# 可选：SSO/模板/表单（当前未使用，保留以备扩展）
+# jinja2==3.1.2
+# python-multipart==0.0.6
+# aiofiles==23.2.1
+# sse-starlette==1.8.2
+# pydantic-settings==2.1.0

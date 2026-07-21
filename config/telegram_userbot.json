@@ -1,0 +1,14 @@
+{
+  "api_id": 38799786,
+  "api_hash": "8b7992ac96c20e86324c61b65ca648e6",
+  "phone_number": "+8618986000108",
+  "session_file": "/root/.openclaw/workspace/config/userbot_session.session",
+  "enabled": true,
+  "说明": {
+    "api_id": "Telegram API ID (从 my.telegram.org 获取)",
+    "api_hash": "Telegram API Hash",
+    "phone_number": "用户手机号（国际格式，如 +86...）",
+    "session_file": "Telethon session 文件路径",
+    "enabled": "是否启用 Userbot 转发"
+  }
+}

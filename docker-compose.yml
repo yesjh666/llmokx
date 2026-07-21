@@ -1,0 +1,16 @@
+version: '3.8'
+
+services:
+  llmokx:
+    build: .
+    container_name: llmokx
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./config:/app/config
+      - ./data:/app/data
+      - ./logs:/app/logs
+    environment:
+      - HOST=0.0.0.0
+      - PORT=8080
+    restart: unless-stopped

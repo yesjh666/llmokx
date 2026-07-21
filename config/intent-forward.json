@@ -1,0 +1,16 @@
+{
+  "enabled": true,
+  "targets": [
+    {
+      "channel": "openclaw-telegram",
+      "target": "-1004208828815",
+      "description": "三马合约意图群"
+    }
+  ],
+  "说明": {
+    "enabled": "是否启用意图转发功能",
+    "targets": "转发目标列表",
+    "channel": "消息通道，如 openclaw-telegram 或 openclaw-weixin",
+    "target": "目标群ID或用户名"
+  }
+}
