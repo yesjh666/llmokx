@@ -542,3 +542,27 @@ input:checked + .slider:before {
         flex-direction: column;
     }
 }
+
+/* 消息处理 Tab 导航 */
+.pipeline-tab {
+    flex: 1;
+    padding: 12px;
+    border: none;
+    background: none;
+    cursor: pointer;
+    font-size: 14px;
+    border-bottom: 2px solid transparent;
+    margin-bottom: -2px;
+    color: #606266;
+    transition: all 0.3s;
+}
+
+.pipeline-tab:hover {
+    color: #409eff;
+}
+
+.pipeline-tab.active {
+    color: #409eff;
+    border-bottom-color: #409eff;
+    font-weight: bold;
+}

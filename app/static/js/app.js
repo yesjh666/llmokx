@@ -369,6 +369,28 @@ async function reloadPrompts() {
 }
 
 // ==================== 消息处理（合并页面） ====================
+function switchPipelineTab(tabName) {
+    // 切换 Tab 按钮样式
+    document.querySelectorAll('.pipeline-tab').forEach(t => {
+        t.classList.remove('active');
+        t.style.color = '#606266';
+        t.style.borderBottomColor = 'transparent';
+        t.style.fontWeight = 'normal';
+    });
+    const activeBtn = document.querySelector(`.pipeline-tab[data-tab="${tabName}"]`);
+    if (activeBtn) {
+        activeBtn.classList.add('active');
+        activeBtn.style.color = '#409eff';
+        activeBtn.style.borderBottomColor = '#409eff';
+        activeBtn.style.fontWeight = 'bold';
+    }
+
+    // 切换内容区域
+    document.querySelectorAll('.pipeline-tab-content').forEach(c => c.style.display = 'none');
+    const content = document.getElementById('tab-' + tabName);
+    if (content) content.style.display = 'block';
+}
+
 async function loadPipelinePage() {
     await Promise.all([
         loadMonitorConfig(),

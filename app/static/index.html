@@ -258,7 +258,7 @@
         <div class="page" id="page-pipeline">
             <div class="page-header">
                 <h2>📡 消息处理</h2>
-                <p>Telegram 监听 → LLM 分析 → 转发信号 → 双通道通知</p>
+                <p>Telegram 监听 → LLM 分析 → Userbot转发到群 → Bot/微信通知提醒</p>
             </div>
 
             <!-- 流程状态总览 -->
@@ -274,263 +274,310 @@
                 </div>
             </div>
 
-            <!-- 1. 连接配置（共享） -->
-            <div class="card">
-                <div class="card-header">
-                    <span class="card-title">① 连接配置（监听和转发共用）</span>
-                    <button class="btn btn-sm btn-default" onclick="loadUserbotConfig()">刷新</button>
-                </div>
-                <div style="background:#f5f7fa;padding:12px;border-radius:6px;margin-bottom:12px;">
-                    <strong>Telethon Userbot</strong> — 用于监听群消息 + 以用户身份发送消息
-                </div>
-                <div class="form-group">
-                    <label>
-                        <input type="checkbox" id="ub-enabled"> 启用 Userbot
-                    </label>
-                </div>
-                <div class="form-row">
-                    <div class="form-group">
-                        <label class="form-label">API ID</label>
-                        <input type="number" class="form-input" id="ub-api-id" placeholder="从 my.telegram.org 获取">
-                    </div>
-                    <div class="form-group">
-                        <label class="form-label">API Hash</label>
-                        <input type="password" class="form-input" id="ub-api-hash" placeholder="xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx">
-                    </div>
-                </div>
-                <div class="form-row">
-                    <div class="form-group">
-                        <label class="form-label">手机号</label>
-                        <input type="text" class="form-input" id="ub-phone" placeholder="+8613800138000">
-                    </div>
-                    <div class="form-group">
-                        <label class="form-label">Session 文件路径</label>
-                        <input type="text" class="form-input" id="ub-session" placeholder="config/userbot_session">
-                    </div>
-                </div>
-                <div style="display:flex;gap:10px;">
-                    <button class="btn btn-primary" onclick="saveUserbotConfig()">保存 Userbot 配置</button>
-                    <button class="btn btn-success" onclick="testUserbotConnection()">测试连接</button>
-                </div>
-                <div id="ub-test-result" style="margin-top:8px;"></div>
-                <div id="ub-code-section" style="display:none;margin-top:12px;padding:12px;background:#f5f7fa;border-radius:6px;">
-                    <div class="form-group" style="margin-bottom:8px;">
-                        <label class="form-label">请输入收到的验证码</label>
-                        <input type="text" class="form-input" id="ub-code" placeholder="输入验证码">
-                    </div>
-                    <button class="btn btn-success" onclick="loginWithCode()">确认登录</button>
-                </div>
-                <hr style="border:none;border-top:1px solid #ebeef5;margin:16px 0;">
-                <div style="background:#f5f7fa;padding:12px;border-radius:6px;margin-bottom:12px;">
-                    <strong>Telegram Bot</strong> — 用于 Bot API 发送消息（转发和通知共用）
-                </div>
-                <div class="form-group">
-                    <label class="form-label">Bot Token</label>
-                    <input type="password" class="form-input" id="shared-bot-token" placeholder="123456789:ABCdefGHIjklMNOpqrsTUVwxyz">
-                </div>
-                <button class="btn btn-primary" onclick="saveSharedBotToken()">保存 Bot Token</button>
+            <!-- Tab 导航 -->
+            <div class="pipeline-tabs" style="display:flex;gap:0;border-bottom:2px solid #ebeef5;margin-bottom:20px;">
+                <button class="pipeline-tab active" data-tab="connection" onclick="switchPipelineTab('connection')">① 连接配置</button>
+                <button class="pipeline-tab" data-tab="monitor" onclick="switchPipelineTab('monitor')">② 监听</button>
+                <button class="pipeline-tab" data-tab="forward" onclick="switchPipelineTab('forward')">③ 转发 (Userbot→群)</button>
+                <button class="pipeline-tab" data-tab="notify" onclick="switchPipelineTab('notify')">④ 通知 (Bot+微信)</button>
             </div>
 
-            <!-- 2. 监听配置 -->
-            <div class="card">
-                <div class="card-header">
-                    <span class="card-title">② 监听配置（接收群消息）</span>
-                    <label class="switch">
-                        <input type="checkbox" id="monitor-enabled">
-                        <span class="slider"></span>
-                    </label>
-                </div>
-                <div class="form-row">
-                    <div class="form-group">
-                        <label class="form-label">最短消息长度</label>
-                        <input type="number" class="form-input" id="monitor-min-length" value="5">
+            <!-- Tab 1: 连接配置 -->
+            <div class="pipeline-tab-content" id="tab-connection">
+                <div class="card">
+                    <div class="card-header">
+                        <span class="card-title">Telethon Userbot（监听 + 转发共用）</span>
+                        <button class="btn btn-sm btn-default" onclick="loadUserbotConfig()">刷新</button>
+                    </div>
+                    <div style="background:#f5f7fa;padding:12px;border-radius:6px;margin-bottom:12px;font-size:13px;">
+                        <strong>Userbot</strong> 以用户身份登录 Telegram，用于监听群消息 + 发送转发信号到目标群
                     </div>
                     <div class="form-group">
-                        <label class="form-label">关键词过滤（逗号分隔，留空=全部）</label>
-                        <input type="text" class="form-input" id="monitor-keywords" placeholder="做多,做空,btc,eth">
+                        <label>
+                            <input type="checkbox" id="ub-enabled"> 启用 Userbot
+                        </label>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label class="form-label">API ID</label>
+                            <input type="number" class="form-input" id="ub-api-id" placeholder="从 my.telegram.org 获取">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">API Hash</label>
+                            <input type="password" class="form-input" id="ub-api-hash" placeholder="xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx">
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label class="form-label">手机号</label>
+                            <input type="text" class="form-input" id="ub-phone" placeholder="+8613800138000">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Session 文件路径</label>
+                            <input type="text" class="form-input" id="ub-session" placeholder="config/userbot_session">
+                        </div>
+                    </div>
+                    <div style="display:flex;gap:10px;">
+                        <button class="btn btn-primary" onclick="saveUserbotConfig()">保存 Userbot 配置</button>
+                        <button class="btn btn-success" onclick="testUserbotConnection()">测试连接</button>
+                    </div>
+                    <div id="ub-test-result" style="margin-top:8px;"></div>
+                    <div id="ub-code-section" style="display:none;margin-top:12px;padding:12px;background:#f5f7fa;border-radius:6px;">
+                        <div class="form-group" style="margin-bottom:8px;">
+                            <label class="form-label">请输入收到的验证码</label>
+                            <input type="text" class="form-input" id="ub-code" placeholder="输入验证码">
+                        </div>
+                        <button class="btn btn-success" onclick="loginWithCode()">确认登录</button>
                     </div>
                 </div>
-                <div class="form-group">
-                    <label>
-                        <input type="checkbox" id="monitor-notify-on-signal" checked> 检测到交易信号时发送通知
-                    </label>
-                </div>
-                <button class="btn btn-primary" onclick="saveMonitorConfig()">保存监听配置</button>
-                <hr style="border:none;border-top:1px solid #ebeef5;margin:16px 0;">
-                <h4 style="margin-bottom:10px;color:#606266;">监听群列表</h4>
-                <div id="monitor-chats-list" style="margin-bottom:12px;"></div>
-                <div class="form-row">
+
+                <div class="card">
+                    <div class="card-header">
+                        <span class="card-title">Telegram Bot（通知推送专用）</span>
+                    </div>
+                    <div style="background:#f5f7fa;padding:12px;border-radius:6px;margin-bottom:12px;font-size:13px;">
+                        <strong>Bot API</strong> 用于发送通知提醒到你的 Telegram（私聊或群），通过 Bot Token 认证
+                    </div>
                     <div class="form-group">
-                        <label class="form-label">群 Chat ID</label>
-                        <input type="text" class="form-input" id="new-monitor-chat-id" placeholder="-100xxxxxxxxxx">
+                        <label class="form-label">Bot Token</label>
+                        <input type="password" class="form-input" id="shared-bot-token" placeholder="123456789:ABCdefGHIjklMNOpqrsTUVwxyz">
                     </div>
-                    <div class="form-group">
-                        <label class="form-label">备注名称</label>
-                        <input type="text" class="form-input" id="new-monitor-chat-name" placeholder="信号群A">
-                    </div>
+                    <button class="btn btn-primary" onclick="saveSharedBotToken()">保存 Bot Token</button>
                 </div>
-                <button class="btn btn-primary" onclick="addMonitorChat()">添加监听群</button>
             </div>
 
-            <!-- 3. 转发配置 -->
-            <div class="card">
-                <div class="card-header">
-                    <span class="card-title">③ 转发配置（发送交易信号到目标群）</span>
-                    <label class="switch">
-                        <input type="checkbox" id="forward-enabled">
-                        <span class="slider"></span>
-                    </label>
-                </div>
-                <div class="form-group">
-                    <label class="form-label">跳过的意图类型（逗号分隔）</label>
-                    <input type="text" class="form-input" id="forward-skip-intents" placeholder="chat, query">
-                </div>
-                <div class="form-group">
-                    <label>
-                        <input type="checkbox" id="forward-userbot-enabled"> 启用 Userbot 发送（以用户身份，否则用 Bot API）
-                    </label>
-                </div>
-                <div style="background:#f0f9eb;padding:10px;border-radius:6px;margin-bottom:12px;font-size:13px;color:#67c23a;">
-                    Bot Token 已在上方「连接配置」中设置，Userbot 凭据也在「连接配置」中设置
-                </div>
-                <button class="btn btn-primary" onclick="saveForwardConfig()">保存转发配置</button>
-                <hr style="border:none;border-top:1px solid #ebeef5;margin:16px 0;">
-                <h4 style="margin-bottom:10px;color:#606266;">转发目标</h4>
-                <div id="forward-targets-list" style="margin-bottom:12px;"></div>
-                <div class="form-row">
-                    <div class="form-group">
-                        <label class="form-label">通道</label>
-                        <select class="form-select" id="new-target-channel">
-                            <option value="openclaw-telegram">Telegram</option>
-                            <option value="openclaw-weixin">微信</option>
-                        </select>
+            <!-- Tab 2: 监听 -->
+            <div class="pipeline-tab-content" id="tab-monitor" style="display:none;">
+                <div class="card">
+                    <div class="card-header">
+                        <span class="card-title">监听配置（接收群消息）</span>
+                        <label class="switch">
+                            <input type="checkbox" id="monitor-enabled">
+                            <span class="slider"></span>
+                        </label>
+                    </div>
+                    <div style="background:#f5f7fa;padding:12px;border-radius:6px;margin-bottom:12px;font-size:13px;">
+                        通过 Userbot 监听指定 Telegram 群的消息，收到后自动进行 LLM 分析
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label class="form-label">最短消息长度</label>
+                            <input type="number" class="form-input" id="monitor-min-length" value="5">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">关键词过滤（逗号分隔，留空=全部）</label>
+                            <input type="text" class="form-input" id="monitor-keywords" placeholder="做多,做空,btc,eth">
+                        </div>
                     </div>
                     <div class="form-group">
-                        <label class="form-label">目标ID</label>
-                        <input type="text" class="form-input" id="new-target-id" placeholder="-100xxxxxxxxxx">
+                        <label>
+                            <input type="checkbox" id="monitor-notify-on-signal" checked> 检测到交易信号时发送通知
+                        </label>
+                    </div>
+                    <button class="btn btn-primary" onclick="saveMonitorConfig()">保存监听配置</button>
+                </div>
+
+                <div class="card">
+                    <div class="card-header">
+                        <span class="card-title">监听群列表</span>
+                    </div>
+                    <div id="monitor-chats-list" style="margin-bottom:16px;"></div>
+                    <hr style="border:none;border-top:1px solid #ebeef5;margin:12px 0;">
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label class="form-label">群 Chat ID</label>
+                            <input type="text" class="form-input" id="new-monitor-chat-id" placeholder="-100xxxxxxxxxx">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">备注名称</label>
+                            <input type="text" class="form-input" id="new-monitor-chat-name" placeholder="信号群A">
+                        </div>
+                    </div>
+                    <button class="btn btn-primary" onclick="addMonitorChat()">添加监听群</button>
+                </div>
+
+                <div class="card">
+                    <div class="card-header">
+                        <span class="card-title">管道测试（模拟完整流程）</span>
                     </div>
                     <div class="form-group">
-                        <label class="form-label">描述</label>
-                        <input type="text" class="form-input" id="new-target-desc" placeholder="群名称">
+                        <label class="form-label">模拟消息文本</label>
+                        <textarea class="form-textarea" id="monitor-test-text" rows="2" placeholder="BTC 做多 60000 止盈65000 止损58000"></textarea>
                     </div>
+                    <button class="btn btn-success" onclick="testMonitorPipeline()">发送测试</button>
+                    <div id="monitor-test-result" style="margin-top:12px;"></div>
                 </div>
-                <button class="btn btn-primary" onclick="addForwardTarget()">添加转发目标</button>
+
+                <div class="card">
+                    <div class="card-header">
+                        <span class="card-title">处理统计</span>
+                        <button class="btn btn-sm btn-default" onclick="loadPipelineStatus()">刷新</button>
+                    </div>
+                    <div id="monitor-stats-display"></div>
+                </div>
             </div>
 
-            <!-- 4. 通知配置 -->
-            <div class="card">
-                <div class="card-header">
-                    <span class="card-title">④ 通知配置（信号提醒推送到微信+Telegram）</span>
-                    <label class="switch">
-                        <input type="checkbox" id="notify-enabled">
-                        <span class="slider"></span>
-                    </label>
-                </div>
-                <div class="form-row">
-                    <div class="form-group">
-                        <label class="form-label">最大重试次数</label>
-                        <input type="number" class="form-input" id="notify-max-retries" value="3">
+            <!-- Tab 3: 转发 -->
+            <div class="pipeline-tab-content" id="tab-forward" style="display:none;">
+                <div class="card">
+                    <div class="card-header">
+                        <span class="card-title">转发配置（Userbot 发送信号到 Telegram 群）</span>
+                        <label class="switch">
+                            <input type="checkbox" id="forward-enabled">
+                            <span class="slider"></span>
+                        </label>
+                    </div>
+                    <div style="background:#f5f7fa;padding:12px;border-radius:6px;margin-bottom:12px;font-size:13px;">
+                        LLM 分析出交易信号后，通过 <strong>Userbot</strong> 以用户身份将信号发送到目标 Telegram 群
                     </div>
                     <div class="form-group">
-                        <label class="form-label">重试间隔（秒）</label>
-                        <input type="number" class="form-input" id="notify-retry-interval" value="5">
+                        <label class="form-label">跳过的意图类型（逗号分隔）</label>
+                        <input type="text" class="form-input" id="forward-skip-intents" placeholder="chat, query">
                     </div>
+                    <div class="form-group">
+                        <label>
+                            <input type="checkbox" id="forward-userbot-enabled"> 启用 Userbot 发送（以用户身份，否则用 Bot API）
+                        </label>
+                    </div>
+                    <div style="background:#f0f9eb;padding:10px;border-radius:6px;margin-bottom:12px;font-size:13px;color:#67c23a;">
+                        Userbot 凭据在「连接配置」中统一管理
+                    </div>
+                    <button class="btn btn-primary" onclick="saveForwardConfig()">保存转发配置</button>
                 </div>
-                <div class="form-group">
-                    <label>
-                        <input type="checkbox" id="notify-parallel" checked> 双通道并行发送
-                    </label>
-                </div>
-                <button class="btn btn-primary" onclick="saveNotificationGlobalConfig()">保存通知配置</button>
-                <hr style="border:none;border-top:1px solid #ebeef5;margin:16px 0;">
 
-                <h4 style="margin-bottom:10px;color:#606266;">💬 微信通道</h4>
-                <div class="form-group">
-                    <label>
-                        <input type="checkbox" id="notify-wechat-enabled"> 启用微信通知
-                    </label>
-                </div>
-                <div class="form-group">
-                    <label>
-                        <input type="checkbox" id="notify-use-openclaw" checked> 使用 openclaw 命令发送
-                    </label>
-                </div>
-                <div class="form-row">
-                    <div class="form-group">
-                        <label class="form-label">微信Target</label>
-                        <input type="text" class="form-input" id="notify-wechat-target" placeholder="o9cq80zZk50Q33Snd8zOZ5vlAEQ4@im.wechat">
+                <div class="card">
+                    <div class="card-header">
+                        <span class="card-title">转发目标群</span>
                     </div>
-                    <div class="form-group">
-                        <label class="form-label">微信Account</label>
-                        <input type="text" class="form-input" id="notify-wechat-account" placeholder="ea3465f35dfb-im-bot">
+                    <div id="forward-targets-list" style="margin-bottom:16px;"></div>
+                    <hr style="border:none;border-top:1px solid #ebeef5;margin:12px 0;">
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label class="form-label">通道</label>
+                            <select class="form-select" id="new-target-channel">
+                                <option value="openclaw-telegram">Telegram</option>
+                                <option value="openclaw-weixin">微信</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">目标ID</label>
+                            <input type="text" class="form-input" id="new-target-id" placeholder="-100xxxxxxxxxx">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">描述</label>
+                            <input type="text" class="form-input" id="new-target-desc" placeholder="群名称">
+                        </div>
                     </div>
+                    <button class="btn btn-primary" onclick="addForwardTarget()">添加转发目标</button>
                 </div>
-                <div class="form-group">
-                    <label class="form-label">微信通道</label>
-                    <input type="text" class="form-input" id="notify-wechat-channel" placeholder="openclaw-weixin">
-                </div>
-                <div class="form-group">
-                    <label class="form-label">Webhook URL（不使用openclaw时生效）</label>
-                    <input type="text" class="form-input" id="notify-webhook-url" placeholder="https://qyapi.weixin.qq.com/cgi-bin/webhook/send?key=xxx">
-                </div>
-                <button class="btn btn-primary" onclick="saveWechatConfig()">保存微信配置</button>
-                <button class="btn btn-success" onclick="testNotification('wechat')" style="margin-left:8px;">测试微信</button>
-                <hr style="border:none;border-top:1px solid #ebeef5;margin:16px 0;">
-
-                <h4 style="margin-bottom:10px;color:#606266;">✈️ Telegram 通知通道</h4>
-                <div style="background:#f0f9eb;padding:10px;border-radius:6px;margin-bottom:12px;font-size:13px;color:#67c23a;">
-                    Bot Token 已在上方「连接配置」中设置，此处只需配置接收通知的 Chat ID
-                </div>
-                <div class="form-group">
-                    <label>
-                        <input type="checkbox" id="notify-telegram-enabled"> 启用 Telegram 通知
-                    </label>
-                </div>
-                <div class="form-row">
-                    <div class="form-group">
-                        <label class="form-label">Chat ID</label>
-                        <input type="text" class="form-input" id="notify-telegram-chat-id" placeholder="-1001234567890">
-                    </div>
-                    <div class="form-group">
-                        <label class="form-label">消息格式</label>
-                        <select class="form-select" id="notify-telegram-parse-mode">
-                            <option value="HTML">HTML</option>
-                            <option value="Markdown">Markdown</option>
-                            <option value="MarkdownV2">MarkdownV2</option>
-                        </select>
-                    </div>
-                </div>
-                <div class="form-group">
-                    <label>
-                        <input type="checkbox" id="notify-telegram-disable-notification"> 静音发送（不振动）
-                    </label>
-                </div>
-                <button class="btn btn-primary" onclick="saveTelegramConfig()">保存Telegram配置</button>
-                <button class="btn btn-success" onclick="testNotification('telegram')" style="margin-left:8px;">测试Telegram</button>
-                <hr style="border:none;border-top:1px solid #ebeef5;margin:16px 0;">
-                <button class="btn btn-success" onclick="testNotification('all')">📢 同时测试微信 + Telegram</button>
             </div>
 
-            <!-- 5. 管道测试 -->
-            <div class="card">
-                <div class="card-header">
-                    <span class="card-title">⑤ 管道测试（模拟完整流程）</span>
+            <!-- Tab 4: 通知 -->
+            <div class="pipeline-tab-content" id="tab-notify" style="display:none;">
+                <div class="card">
+                    <div class="card-header">
+                        <span class="card-title">通知配置（信号提醒推送到微信 + Telegram）</span>
+                        <label class="switch">
+                            <input type="checkbox" id="notify-enabled">
+                            <span class="slider"></span>
+                        </label>
+                    </div>
+                    <div style="background:#f5f7fa;padding:12px;border-radius:6px;margin-bottom:12px;font-size:13px;">
+                        检测到交易信号后，同时通过 <strong>Telegram Bot</strong> 和 <strong>微信</strong> 推送通知提醒你
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label class="form-label">最大重试次数</label>
+                            <input type="number" class="form-input" id="notify-max-retries" value="3">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">重试间隔（秒）</label>
+                            <input type="number" class="form-input" id="notify-retry-interval" value="5">
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label>
+                            <input type="checkbox" id="notify-parallel" checked> 双通道并行发送
+                        </label>
+                    </div>
+                    <button class="btn btn-primary" onclick="saveNotificationGlobalConfig()">保存通知配置</button>
                 </div>
-                <div class="form-group">
-                    <label class="form-label">模拟消息文本</label>
-                    <textarea class="form-textarea" id="monitor-test-text" rows="2" placeholder="BTC 做多 60000 止盈65000 止损58000"></textarea>
-                </div>
-                <button class="btn btn-success" onclick="testMonitorPipeline()">发送测试</button>
-                <div id="monitor-test-result" style="margin-top:12px;"></div>
-            </div>
 
-            <!-- 处理统计 -->
-            <div class="card">
-                <div class="card-header">
-                    <span class="card-title">处理统计</span>
-                    <button class="btn btn-sm btn-default" onclick="loadPipelineStatus()">刷新</button>
+                <div class="card">
+                    <div class="card-header">
+                        <span class="card-title">✈️ Telegram Bot 通知</span>
+                        <label class="switch">
+                            <input type="checkbox" id="notify-telegram-enabled">
+                            <span class="slider"></span>
+                        </label>
+                    </div>
+                    <div style="background:#f0f9eb;padding:10px;border-radius:6px;margin-bottom:12px;font-size:13px;color:#67c23a;">
+                        Bot Token 在「连接配置」中统一管理，此处配置接收通知的 Chat ID
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label class="form-label">Chat ID（你的私聊或群）</label>
+                            <input type="text" class="form-input" id="notify-telegram-chat-id" placeholder="-1001234567890">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">消息格式</label>
+                            <select class="form-select" id="notify-telegram-parse-mode">
+                                <option value="HTML">HTML</option>
+                                <option value="Markdown">Markdown</option>
+                                <option value="MarkdownV2">MarkdownV2</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label>
+                            <input type="checkbox" id="notify-telegram-disable-notification"> 静音发送（不振动）
+                        </label>
+                    </div>
+                    <button class="btn btn-primary" onclick="saveTelegramConfig()">保存Telegram配置</button>
+                    <button class="btn btn-success" onclick="testNotification('telegram')" style="margin-left:8px;">测试Telegram</button>
                 </div>
-                <div id="monitor-stats-display"></div>
+
+                <div class="card">
+                    <div class="card-header">
+                        <span class="card-title">💬 微信通知</span>
+                        <label class="switch">
+                            <input type="checkbox" id="notify-wechat-enabled">
+                            <span class="slider"></span>
+                        </label>
+                    </div>
+                    <div class="form-group">
+                        <label>
+                            <input type="checkbox" id="notify-use-openclaw" checked> 使用 openclaw 命令发送
+                        </label>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label class="form-label">微信Target</label>
+                            <input type="text" class="form-input" id="notify-wechat-target" placeholder="o9cq80zZk50Q33Snd8zOZ5vlAEQ4@im.wechat">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">微信Account</label>
+                            <input type="text" class="form-input" id="notify-wechat-account" placeholder="ea3465f35dfb-im-bot">
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">微信通道</label>
+                        <input type="text" class="form-input" id="notify-wechat-channel" placeholder="openclaw-weixin">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Webhook URL（不使用openclaw时生效）</label>
+                        <input type="text" class="form-input" id="notify-webhook-url" placeholder="https://qyapi.weixin.qq.com/cgi-bin/webhook/send?key=xxx">
+                    </div>
+                    <button class="btn btn-primary" onclick="saveWechatConfig()">保存微信配置</button>
+                    <button class="btn btn-success" onclick="testNotification('wechat')" style="margin-left:8px;">测试微信</button>
+                </div>
+
+                <div class="card">
+                    <div class="card-header">
+                        <span class="card-title">📢 双通道测试</span>
+                    </div>
+                    <button class="btn btn-success" onclick="testNotification('all')">同时测试微信 + Telegram</button>
+                </div>
             </div>
         </div>
 
