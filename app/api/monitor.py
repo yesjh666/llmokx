@@ -214,45 +214,31 @@ async def update_userbot_config(req: UserbotConfigUpdate):
 
 @router.post("/userbot/test")
 async def test_userbot_connection():
-    """测试 Telegram 连接（自动处理登录流程）"""
-    cfg = _load_userbot_config()
-    if not cfg.get("api_id") or not cfg.get("api_hash"):
-        return {"success": False, "message": "api_id 或 api_hash 未配置"}
-
-    phone = cfg.get("phone_number", "")
-    success, msg = await client_manager.ensure_connected()
-
-    if not success:
-        return {"success": False, "message": msg}
-
-    if client_manager._authorized:
-        me = client_manager._me
-        return {
-            "success": True,
-            "message": f"已登录: {me.first_name} (ID: {me.id}, 手机: {me.phone})" if me else "已登录",
-        }
-
-    if not phone:
-        return {"success": False, "message": "未授权且未配置手机号，请先填写手机号"}
-
-    # 发送验证码
-    success, msg, need_code = await client_manager.send_code_request(phone)
-    if need_code:
-        return {
-            "success": False,
-            "need_code": True,
-            "message": msg,
-        }
-    return {"success": success, "message": msg}
+    """
+    测试连接 + 启动登录流程
+    - 如已授权 → 返回成功
+    - 如有有效 session → 自动恢复
+    - 否则 → 发送验证码，返回 need_code=True
+    """
+    result = await client_manager.start_login()
+    return result
 
 
 @router.post("/userbot/login")
 async def login_with_code(code: str):
-    """用验证码完成 Telegram 登录"""
-    cfg = _load_userbot_config()
-    if not cfg.get("api_id") or not cfg.get("api_hash"):
-        return {"success": False, "message": "api_id 或 api_hash 未配置"}
+    """提交验证码登录（可能返回需要2FA密码）"""
+    result = await client_manager.submit_code(code)
+    return result
 
-    phone = cfg.get("phone_number", "")
-    success, msg = await client_manager.sign_in(phone, code)
-    return {"success": success, "message": msg}
+
+@router.post("/userbot/password")
+async def login_with_password(password: str):
+    """提交两步验证密码"""
+    result = await client_manager.submit_password(password)
+    return result
+
+
+@router.get("/userbot/state")
+async def get_login_state():
+    """获取当前登录状态"""
+    return client_manager.get_login_state()

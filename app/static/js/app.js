@@ -955,13 +955,17 @@ async function testUserbotConnection() {
     const container = document.getElementById('ub-test-result');
     container.innerHTML = '<div style="color:#909399;">连接中...</div>';
     document.getElementById('ub-code-section').style.display = 'none';
+    document.getElementById('ub-password-section').style.display = 'none';
     try {
         const result = await api('/api/monitor/userbot/test', { method: 'POST' });
-        if (result.success) {
+        if (result.state === 'authorized') {
             container.innerHTML = `<div style="color:#67c23a;">✓ ${escapeHtml(result.message)}</div>`;
-        } else if (result.need_code) {
+        } else if (result.need_code || result.state === 'waiting_code') {
             container.innerHTML = `<div style="color:#e6a23c;">⚠ ${escapeHtml(result.message)}</div>`;
             document.getElementById('ub-code-section').style.display = 'block';
+        } else if (result.need_password || result.state === 'waiting_password') {
+            container.innerHTML = `<div style="color:#e6a23c;">⚠ ${escapeHtml(result.message)}</div>`;
+            document.getElementById('ub-password-section').style.display = 'block';
         } else {
             container.innerHTML = `<div style="color:#f56c6c;">✗ ${escapeHtml(result.message)}</div>`;
         }
@@ -974,13 +978,36 @@ async function loginWithCode() {
     const code = document.getElementById('ub-code').value.trim();
     if (!code) { toast('请输入验证码', 'warning'); return; }
     const container = document.getElementById('ub-test-result');
-    container.innerHTML = '<div style="color:#909399;">登录中...</div>';
+    container.innerHTML = '<div style="color:#909399;">验证中...</div>';
     try {
         const result = await api(`/api/monitor/userbot/login?code=${encodeURIComponent(code)}`, { method: 'POST' });
-        if (result.success) {
+        if (result.state === 'authorized') {
             container.innerHTML = `<div style="color:#67c23a;">✓ ${escapeHtml(result.message)}</div>`;
             document.getElementById('ub-code-section').style.display = 'none';
+            document.getElementById('ub-password-section').style.display = 'none';
             document.getElementById('ub-code').value = '';
+        } else if (result.need_password || result.state === 'waiting_password') {
+            container.innerHTML = `<div style="color:#e6a23c;">⚠ ${escapeHtml(result.message)}</div>`;
+            document.getElementById('ub-password-section').style.display = 'block';
+        } else {
+            container.innerHTML = `<div style="color:#f56c6c;">✗ ${escapeHtml(result.message)}</div>`;
+        }
+    } catch (e) {
+        container.innerHTML = `<div style="color:#f56c6c;">✗ ${e.message}</div>`;
+    }
+}
+
+async function loginWithPassword() {
+    const password = document.getElementById('ub-password').value.trim();
+    if (!password) { toast('请输入两步验证密码', 'warning'); return; }
+    const container = document.getElementById('ub-test-result');
+    container.innerHTML = '<div style="color:#909399;">验证密码中...</div>';
+    try {
+        const result = await api(`/api/monitor/userbot/password?password=${encodeURIComponent(password)}`, { method: 'POST' });
+        if (result.state === 'authorized') {
+            container.innerHTML = `<div style="color:#67c23a;">✓ ${escapeHtml(result.message)}</div>`;
+            document.getElementById('ub-password-section').style.display = 'none';
+            document.getElementById('ub-password').value = '';
         } else {
             container.innerHTML = `<div style="color:#f56c6c;">✗ ${escapeHtml(result.message)}</div>`;
         }

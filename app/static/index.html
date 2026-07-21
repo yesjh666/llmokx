@@ -318,12 +318,21 @@
                         <button class="btn btn-success" onclick="testUserbotConnection()">测试连接</button>
                     </div>
                     <div id="ub-test-result" style="margin-top:8px;"></div>
+                    <!-- 验证码输入（发送验证码后显示） -->
                     <div id="ub-code-section" style="display:none;margin-top:12px;padding:12px;background:#f5f7fa;border-radius:6px;">
                         <div class="form-group" style="margin-bottom:8px;">
                             <label class="form-label">请输入收到的验证码</label>
                             <input type="text" class="form-input" id="ub-code" placeholder="输入验证码">
                         </div>
-                        <button class="btn btn-success" onclick="loginWithCode()">确认登录</button>
+                        <button class="btn btn-success" onclick="loginWithCode()">验证登录</button>
+                    </div>
+                    <!-- 2FA 密码输入（需要两步验证时显示） -->
+                    <div id="ub-password-section" style="display:none;margin-top:12px;padding:12px;background:#fdf6ec;border-radius:6px;border-left:3px solid #e6a23c;">
+                        <div class="form-group" style="margin-bottom:8px;">
+                            <label class="form-label">🔒 两步验证密码</label>
+                            <input type="password" class="form-input" id="ub-password" placeholder="输入 Telegram 云端密码">
+                        </div>
+                        <button class="btn btn-success" onclick="loginWithPassword()">确认密码</button>
                     </div>
                 </div>
 
