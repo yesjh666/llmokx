@@ -496,6 +496,15 @@ deploy_files() {
     # 设置权限
     $SUDO chmod -R 755 "$INSTALL_DIR"
 
+    # 初始化 git 仓库（用于后续升级）
+    if [[ ! -d "$INSTALL_DIR/.git" ]]; then
+        log_info "初始化 git 仓库..."
+        cd "$INSTALL_DIR"
+        $SUDO git init -q 2>/dev/null || true
+        $SUDO git remote add origin "$REPO_URL" 2>/dev/null || true
+        cd - >/dev/null
+    fi
+
     log_info "文件部署完成"
 }
 
