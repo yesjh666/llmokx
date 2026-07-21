@@ -954,53 +954,52 @@ async function saveAndConnectUserbot() {
     const apiId = document.getElementById('ub-api-id').value.trim();
     const apiHash = document.getElementById('ub-api-hash').value;
     const phone = document.getElementById('ub-phone').value.trim();
+    const apiHashPlaceholder = document.getElementById('ub-api-hash').placeholder;
 
-    // 前端校验
+    // 校验
     if (!apiId) { toast('请填写 API ID', 'warning'); return; }
-    if (!apiHash || apiHash.includes('****')) {
-        // 如果 api_hash 是脱敏的（已配置），不覆盖；需要用户重新输入
-        const existingHash = apiHash.includes('****');
-        if (existingHash) {
-            // 用已有的 hash
-        } else {
-            toast('请填写 API Hash', 'warning'); return;
-        }
-    }
     if (!phone) { toast('请填写手机号', 'warning'); return; }
 
-    // Step 1: 保存配置
-    container.innerHTML = '<div style="color:#909399;">正在保存配置...</div>';
+    // API Hash：空但已配置过 → 不覆盖；空且未配置 → 拦截
+    const hashAlreadyConfigured = apiHashPlaceholder.includes('已配置') || apiHash.includes('****');
+    if (!apiHash && !hashAlreadyConfigured) {
+        toast('请填写 API Hash', 'warning'); return;
+    }
+
+    // 隐藏之前的输入框
     document.getElementById('ub-code-section').style.display = 'none';
     document.getElementById('ub-password-section').style.display = 'none';
+
+    // Step 1: 保存配置
+    container.innerHTML = '<div style="color:#909399;padding:8px;">正在保存配置...</div>';
 
     const data = {
         enabled: document.getElementById('ub-enabled').checked,
         api_id: parseInt(apiId) || null,
         phone_number: phone,
     };
-    if (apiHash && !apiHash.includes('****')) data.api_hash = apiHash;
+    if (apiHash && !apiHash.includes('****')) {
+        data.api_hash = apiHash;
+    }
 
     try {
         const saveResult = await api('/api/monitor/userbot', { method: 'PUT', body: JSON.stringify(data) });
         if (!saveResult.success) {
-            container.innerHTML = `<div style="color:#f56c6c;">✗ 配置保存失败: ${escapeHtml(saveResult.message)}</div>`;
+            container.innerHTML = `<div style="color:#f56c6c;padding:8px;">✗ 配置保存失败: ${escapeHtml(saveResult.message)}</div>`;
             return;
         }
     } catch (e) {
-        container.innerHTML = `<div style="color:#f56c6c;">✗ 保存失败: ${e.message}</div>`;
+        container.innerHTML = `<div style="color:#f56c6c;padding:8px;">✗ 保存失败: ${e.message}</div>`;
         return;
     }
 
-    // Step 2: 连接 + 启动登录
-    container.innerHTML = '<div style="color:#909399;">正在连接 Telegram...</div>';
+    // Step 2: 连接 Telegram 并启动登录
+    container.innerHTML = '<div style="color:#909399;padding:8px;">正在连接 Telegram...</div>';
     try {
-        // 如果之前有连接，先断开
-        await api('/api/monitor/stop', { method: 'POST' }).catch(() => {});
-
         const result = await api('/api/monitor/userbot/test', { method: 'POST' });
         handleLoginResult(container, result);
     } catch (e) {
-        container.innerHTML = `<div style="color:#f56c6c;">✗ 连接失败: ${e.message}</div>`;
+        container.innerHTML = `<div style="color:#f56c6c;padding:8px;">✗ 连接失败: ${e.message}</div>`;
     }
 }
 

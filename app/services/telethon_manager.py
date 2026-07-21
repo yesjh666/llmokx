@@ -103,8 +103,23 @@ class TelethonClientManager:
     async def connect(self) -> Tuple[bool, str]:
         """连接 Telegram 服务器（不自动登录）"""
         async with self._lock:
+            # 检查已有连接是否真的有效
             if self._connected and self._client:
-                return True, "已连接"
+                try:
+                    if self._client.is_connected():
+                        # 连接还活着
+                        if self._authorized and self._me:
+                            return True, f"已登录: {self._me.first_name} (ID: {self._me.id})"
+                        return True, "已连接"
+                except Exception:
+                    pass
+                # 连接已失效，清理
+                try:
+                    await self._client.disconnect()
+                except Exception:
+                    pass
+                self._client = None
+                self._connected = False
 
             cfg = self._get_config()
             api_id = cfg.get("api_id")
@@ -166,9 +181,16 @@ class TelethonClientManager:
             logger.info("Telegram 已断开")
 
     async def ensure_connected(self) -> Tuple[bool, str]:
-        """确保已连接"""
+        """确保已连接（检查真实状态）"""
         if self._connected and self._client:
-            return True, "已连接"
+            try:
+                if self._client.is_connected():
+                    return True, "已连接"
+            except Exception:
+                pass
+            # 连接已失效
+            self._connected = False
+            self._client = None
         return await self.connect()
 
     # ==================== 登录流程 ====================
@@ -179,27 +201,27 @@ class TelethonClientManager:
         - 如已授权 → 直接返回成功
         - 如有 session 文件 → 尝试自动恢复
         - 否则 → 发送验证码
-
-        Returns:
-            dict: {
-                "success": bool,
-                "state": str,       # connected/waiting_code/authorized/error
-                "message": str,
-                "need_code": bool,  # 是否需要输入验证码
-                "phone": str,       # 手机号（脱敏）
-            }
         """
+        # 强制重新连接，确保检查真实状态
         success, msg = await self.ensure_connected()
         if not success:
             return {"success": False, "state": LOGIN_STATE_ERROR, "message": msg}
 
-        # 已授权
-        if self._authorized and self._me:
-            return {
-                "success": True,
-                "state": LOGIN_STATE_AUTHORIZED,
-                "message": f"已登录: {self._me.first_name} (ID: {self._me.id})",
-            }
+        # 重新检查授权状态（session 文件可能已有效）
+        try:
+            if await self._client.is_user_authorized():
+                self._authorized = True
+                self._login_state = LOGIN_STATE_AUTHORIZED
+                self._me = await self._client.get_me()
+                self._secure_session_file()
+                logger.info(f"Session 恢复成功: {self._me.first_name} (ID: {self._me.id})")
+                return {
+                    "success": True,
+                    "state": LOGIN_STATE_AUTHORIZED,
+                    "message": f"已登录: {self._me.first_name} (ID: {self._me.id})",
+                }
+        except Exception as e:
+            logger.warning(f"检查授权状态失败: {e}")
 
         # 未授权，发送验证码
         cfg = self._get_config()
