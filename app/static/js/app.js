@@ -921,7 +921,6 @@ async function loadUserbotConfig() {
             document.getElementById('ub-api-hash').placeholder = '已配置(输入新值覆盖)';
         }
         document.getElementById('ub-phone').value = cfg.phone_number || '';
-        document.getElementById('ub-session').value = cfg.session_file || 'config/userbot_session';
 
         // 加载共享 Bot Token（从 forward 配置读取）
         const fwdCfg = await api('/api/forward/config');
@@ -941,7 +940,6 @@ async function saveUserbotConfig() {
         enabled: document.getElementById('ub-enabled').checked,
         api_id: parseInt(document.getElementById('ub-api-id').value) || null,
         phone_number: document.getElementById('ub-phone').value.trim(),
-        session_file: document.getElementById('ub-session').value.trim(),
     };
     const hash = document.getElementById('ub-api-hash').value;
     if (hash && !hash.includes('****')) data.api_hash = hash;

@@ -47,11 +47,10 @@ class TelethonClientManager:
             logger.error(f"读取 userbot 配置失败: {e}")
             return {}
 
-    def _get_session_path(self, session_file: str) -> str:
-        """获取 session 文件绝对路径"""
+    def _get_session_path(self, session_file: str = "") -> str:
+        """获取 session 文件绝对路径（写死在程序目录下）"""
         base_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-        if not os.path.isabs(session_file):
-            session_file = os.path.join(base_dir, session_file)
+        session_file = os.path.join(base_dir, "config", "userbot_session")
         # 确保目录存在
         os.makedirs(os.path.dirname(session_file), exist_ok=True)
         return session_file
@@ -90,7 +89,6 @@ class TelethonClientManager:
             cfg = self._get_config()
             api_id = cfg.get("api_id")
             api_hash = cfg.get("api_hash")
-            session_file = cfg.get("session_file", "config/userbot_session")
 
             if not api_id or not api_hash:
                 return False, "api_id 或 api_hash 未配置"
@@ -100,7 +98,7 @@ class TelethonClientManager:
             except ImportError:
                 return False, "telethon 未安装，请运行: pip install telethon"
 
-            session_path = self._get_session_path(session_file)
+            session_path = self._get_session_path()
             self._client = TelegramClient(session_path, api_id, api_hash)
 
             try:
@@ -182,7 +180,7 @@ class TelethonClientManager:
             await self._client.sign_in(phone, code)
             self._authorized = True
             self._me = await self._client.get_me()
-            session_path = self._get_session_path(self._get_config().get("session_file", "config/userbot_session"))
+            session_path = self._get_session_path()
             self._secure_session_file(session_path)
             return True, f"登录成功: {self._me.first_name} (ID: {self._me.id})"
         except Exception as e:

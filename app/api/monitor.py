@@ -42,7 +42,6 @@ class UserbotConfigUpdate(BaseModel):
     api_id: Optional[int] = None
     api_hash: Optional[str] = None
     phone_number: Optional[str] = None
-    session_file: Optional[str] = None
     enabled: Optional[bool] = None
 
 
