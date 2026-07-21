@@ -235,7 +235,9 @@ class TelethonClientManager:
             }
 
         try:
-            self._phone_code_hash = await self._client.send_code_request(phone)
+            result = await self._client.send_code_request(phone)
+            # Telethon 1.34+ 返回 SentCode 对象，需要提取 phone_code_hash
+            self._phone_code_hash = getattr(result, 'phone_code_hash', None)
             self._login_state = LOGIN_STATE_WAITING_CODE
             masked_phone = phone[:3] + "****" + phone[-4:] if len(phone) > 7 else phone
             logger.info(f"验证码已发送到 {masked_phone}")
@@ -292,11 +294,7 @@ class TelethonClientManager:
         )
 
         try:
-            await self._client.sign_in(
-                phone=phone,
-                code=code,
-                phone_code_hash=self._phone_code_hash,
-            )
+            await self._client.sign_in(phone=phone, code=code)
             # 登录成功
             self._authorized = True
             self._login_state = LOGIN_STATE_AUTHORIZED
