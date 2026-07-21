@@ -900,6 +900,15 @@ async function loadUserbotConfig() {
         }
         document.getElementById('ub-phone').value = cfg.phone_number || '';
         document.getElementById('ub-session').value = cfg.session_file || 'config/userbot_session';
+
+        // 加载共享 Bot Token（从 forward 配置读取）
+        const fwdCfg = await api('/api/forward/config');
+        document.getElementById('shared-bot-token').value = '';
+        if (fwdCfg.bot_token_configured) {
+            document.getElementById('shared-bot-token').placeholder = fwdCfg.telegram_bot_token_masked || '已配置(输入新值覆盖)';
+        } else {
+            document.getElementById('shared-bot-token').placeholder = '123456789:ABCdefGHIjklMNOpqrsTUVwxyz';
+        }
     } catch (e) {
         toast('加载 Userbot 配置失败: ' + e.message, 'error');
     }
