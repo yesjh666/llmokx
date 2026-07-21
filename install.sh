@@ -269,19 +269,29 @@ check_python() {
         log_skip "pip"
     fi
 
-    # 检查 venv 模块
+    # 检查 venv 模块（含 ensurepip）
+    local venv_ok=true
     if ! $PYTHON_BIN -c "import venv" >/dev/null 2>&1; then
-        log_warn "venv 模块缺失，开始自动安装..."
-        log_install "python3-venv"
+        venv_ok=false
+    elif ! $PYTHON_BIN -c "import ensurepip" >/dev/null 2>&1; then
+        venv_ok=false
+    elif ! $PYTHON_BIN -m venv --help >/dev/null 2>&1; then
+        venv_ok=false
+    fi
+
+    if [[ "$venv_ok" == false ]]; then
+        log_warn "venv/ensurepip 模块不完整，开始自动安装..."
+        log_install "python${PY_MAJOR}.${PY_MINOR}-venv"
         if [[ "$PKG_MGR" == "apt" ]]; then
             pkg_install "python${PY_MAJOR}.${PY_MINOR}-venv" python3-venv
         else
             pkg_install python3-venv
         fi
-        if $PYTHON_BIN -c "import venv" >/dev/null 2>&1; then
+        # 验证 ensurepip 可用
+        if $PYTHON_BIN -c "import ensurepip" >/dev/null 2>&1; then
             log_info "venv 模块安装成功"
         else
-            log_error "venv 模块安装失败"
+            log_error "venv 模块安装失败，请手动运行: apt install python${PY_MAJOR}.${PY_MINOR}-venv"
             exit 1
         fi
     else
@@ -498,7 +508,14 @@ setup_python_env() {
     # 创建虚拟环境
     if [[ ! -d "$VENV_DIR" ]]; then
         log_install "创建虚拟环境: $VENV_DIR"
-        $SUDO $PYTHON_BIN -m venv "$VENV_DIR"
+        if ! $SUDO $PYTHON_BIN -m venv "$VENV_DIR" 2>&1; then
+            log_error "venv 创建失败，尝试安装 python${PY_MAJOR}.${PY_MINOR}-venv 后重试..."
+            $SUDO apt-get install -y -qq "python${PY_MAJOR}.${PY_MINOR}-venv" 2>&1 | tail -3
+            if ! $SUDO $PYTHON_BIN -m venv "$VENV_DIR" 2>&1; then
+                log_error "venv 创建失败，请手动运行: apt install python${PY_MAJOR}.${PY_MINOR}-venv"
+                exit 1
+            fi
+        fi
     else
         log_skip "虚拟环境已存在"
     fi
