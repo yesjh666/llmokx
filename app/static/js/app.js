@@ -922,7 +922,21 @@ async function loadUserbotConfig() {
         }
         document.getElementById('ub-phone').value = cfg.phone_number || '';
 
-        // 加载共享 Bot Token（从 forward 配置读取）
+        // 加载当前登录状态
+        try {
+            const state = await api('/api/monitor/userbot/state');
+            const container = document.getElementById('ub-test-result');
+            if (state.state === 'authorized') {
+                const u = state.user || {};
+                container.innerHTML = `<div style="color:#67c23a;padding:8px;">✓ 已登录: ${escapeHtml(u.first_name)} (ID: ${u.id})</div>`;
+            } else if (state.session_exists && state.state === 'idle') {
+                container.innerHTML = `<div style="color:#909399;padding:8px;">Session 文件存在，点击「保存并登录」恢复连接</div>`;
+            } else if (state.state === 'connected') {
+                container.innerHTML = `<div style="color:#e6a23c;padding:8px;">⚠ 已连接但未授权，点击「保存并登录」</div>`;
+            }
+        } catch (e) {}
+
+        // 加载共享 Bot Token
         const fwdCfg = await api('/api/forward/config');
         document.getElementById('shared-bot-token').value = '';
         if (fwdCfg.bot_token_configured) {
@@ -935,42 +949,81 @@ async function loadUserbotConfig() {
     }
 }
 
-async function saveUserbotConfig() {
+async function saveAndConnectUserbot() {
+    const container = document.getElementById('ub-test-result');
+    const apiId = document.getElementById('ub-api-id').value.trim();
+    const apiHash = document.getElementById('ub-api-hash').value;
+    const phone = document.getElementById('ub-phone').value.trim();
+
+    // 前端校验
+    if (!apiId) { toast('请填写 API ID', 'warning'); return; }
+    if (!apiHash || apiHash.includes('****')) {
+        // 如果 api_hash 是脱敏的（已配置），不覆盖；需要用户重新输入
+        const existingHash = apiHash.includes('****');
+        if (existingHash) {
+            // 用已有的 hash
+        } else {
+            toast('请填写 API Hash', 'warning'); return;
+        }
+    }
+    if (!phone) { toast('请填写手机号', 'warning'); return; }
+
+    // Step 1: 保存配置
+    container.innerHTML = '<div style="color:#909399;">正在保存配置...</div>';
+    document.getElementById('ub-code-section').style.display = 'none';
+    document.getElementById('ub-password-section').style.display = 'none';
+
     const data = {
         enabled: document.getElementById('ub-enabled').checked,
-        api_id: parseInt(document.getElementById('ub-api-id').value) || null,
-        phone_number: document.getElementById('ub-phone').value.trim(),
+        api_id: parseInt(apiId) || null,
+        phone_number: phone,
     };
-    const hash = document.getElementById('ub-api-hash').value;
-    if (hash && !hash.includes('****')) data.api_hash = hash;
+    if (apiHash && !apiHash.includes('****')) data.api_hash = apiHash;
+
     try {
-        await api('/api/monitor/userbot', { method: 'PUT', body: JSON.stringify(data) });
-        toast('Userbot 配置已保存', 'success');
+        const saveResult = await api('/api/monitor/userbot', { method: 'PUT', body: JSON.stringify(data) });
+        if (!saveResult.success) {
+            container.innerHTML = `<div style="color:#f56c6c;">✗ 配置保存失败: ${escapeHtml(saveResult.message)}</div>`;
+            return;
+        }
     } catch (e) {
-        toast('保存失败: ' + e.message, 'error');
+        container.innerHTML = `<div style="color:#f56c6c;">✗ 保存失败: ${e.message}</div>`;
+        return;
+    }
+
+    // Step 2: 连接 + 启动登录
+    container.innerHTML = '<div style="color:#909399;">正在连接 Telegram...</div>';
+    try {
+        // 如果之前有连接，先断开
+        await api('/api/monitor/stop', { method: 'POST' }).catch(() => {});
+
+        const result = await api('/api/monitor/userbot/test', { method: 'POST' });
+        handleLoginResult(container, result);
+    } catch (e) {
+        container.innerHTML = `<div style="color:#f56c6c;">✗ 连接失败: ${e.message}</div>`;
     }
 }
 
-async function testUserbotConnection() {
-    const container = document.getElementById('ub-test-result');
-    container.innerHTML = '<div style="color:#909399;">连接中...</div>';
-    document.getElementById('ub-code-section').style.display = 'none';
-    document.getElementById('ub-password-section').style.display = 'none';
-    try {
-        const result = await api('/api/monitor/userbot/test', { method: 'POST' });
-        if (result.state === 'authorized') {
-            container.innerHTML = `<div style="color:#67c23a;">✓ ${escapeHtml(result.message)}</div>`;
-        } else if (result.need_code || result.state === 'waiting_code') {
-            container.innerHTML = `<div style="color:#e6a23c;">⚠ ${escapeHtml(result.message)}</div>`;
-            document.getElementById('ub-code-section').style.display = 'block';
-        } else if (result.need_password || result.state === 'waiting_password') {
-            container.innerHTML = `<div style="color:#e6a23c;">⚠ ${escapeHtml(result.message)}</div>`;
-            document.getElementById('ub-password-section').style.display = 'block';
-        } else {
-            container.innerHTML = `<div style="color:#f56c6c;">✗ ${escapeHtml(result.message)}</div>`;
-        }
-    } catch (e) {
-        container.innerHTML = `<div style="color:#f56c6c;">✗ ${e.message}</div>`;
+function handleLoginResult(container, result) {
+    if (result.state === 'authorized') {
+        container.innerHTML = `<div style="color:#67c23a;padding:8px;">✓ ${escapeHtml(result.message)}</div>`;
+        document.getElementById('ub-code-section').style.display = 'none';
+        document.getElementById('ub-password-section').style.display = 'none';
+        toast('Telegram 登录成功', 'success');
+    } else if (result.need_code || result.state === 'waiting_code') {
+        container.innerHTML = `<div style="color:#e6a23c;padding:8px;">⚠ ${escapeHtml(result.message)}</div>`;
+        document.getElementById('ub-code-section').style.display = 'block';
+        document.getElementById('ub-password-section').style.display = 'none';
+        document.getElementById('ub-code').value = '';
+        document.getElementById('ub-code').focus();
+    } else if (result.need_password || result.state === 'waiting_password') {
+        container.innerHTML = `<div style="color:#e6a23c;padding:8px;">⚠ ${escapeHtml(result.message)}</div>`;
+        document.getElementById('ub-password-section').style.display = 'block';
+        document.getElementById('ub-code-section').style.display = 'none';
+        document.getElementById('ub-password').value = '';
+        document.getElementById('ub-password').focus();
+    } else {
+        container.innerHTML = `<div style="color:#f56c6c;padding:8px;">✗ ${escapeHtml(result.message)}</div>`;
     }
 }
 
@@ -981,17 +1034,7 @@ async function loginWithCode() {
     container.innerHTML = '<div style="color:#909399;">验证中...</div>';
     try {
         const result = await api(`/api/monitor/userbot/login?code=${encodeURIComponent(code)}`, { method: 'POST' });
-        if (result.state === 'authorized') {
-            container.innerHTML = `<div style="color:#67c23a;">✓ ${escapeHtml(result.message)}</div>`;
-            document.getElementById('ub-code-section').style.display = 'none';
-            document.getElementById('ub-password-section').style.display = 'none';
-            document.getElementById('ub-code').value = '';
-        } else if (result.need_password || result.state === 'waiting_password') {
-            container.innerHTML = `<div style="color:#e6a23c;">⚠ ${escapeHtml(result.message)}</div>`;
-            document.getElementById('ub-password-section').style.display = 'block';
-        } else {
-            container.innerHTML = `<div style="color:#f56c6c;">✗ ${escapeHtml(result.message)}</div>`;
-        }
+        handleLoginResult(container, result);
     } catch (e) {
         container.innerHTML = `<div style="color:#f56c6c;">✗ ${e.message}</div>`;
     }
@@ -1004,13 +1047,7 @@ async function loginWithPassword() {
     container.innerHTML = '<div style="color:#909399;">验证密码中...</div>';
     try {
         const result = await api(`/api/monitor/userbot/password?password=${encodeURIComponent(password)}`, { method: 'POST' });
-        if (result.state === 'authorized') {
-            container.innerHTML = `<div style="color:#67c23a;">✓ ${escapeHtml(result.message)}</div>`;
-            document.getElementById('ub-password-section').style.display = 'none';
-            document.getElementById('ub-password').value = '';
-        } else {
-            container.innerHTML = `<div style="color:#f56c6c;">✗ ${escapeHtml(result.message)}</div>`;
-        }
+        handleLoginResult(container, result);
     } catch (e) {
         container.innerHTML = `<div style="color:#f56c6c;">✗ ${e.message}</div>`;
     }

@@ -314,9 +314,10 @@
                         </div>
                     </div>
                     <div style="display:flex;gap:10px;">
-                        <button class="btn btn-primary" onclick="saveUserbotConfig()">保存 Userbot 配置</button>
-                        <button class="btn btn-success" onclick="testUserbotConnection()">测试连接</button>
+                        <button class="btn btn-primary" onclick="saveAndConnectUserbot()">保存并登录</button>
+                        <button class="btn btn-default" onclick="loadUserbotConfig()">重新加载</button>
                     </div>
+                    <!-- 登录状态 -->
                     <div id="ub-test-result" style="margin-top:8px;"></div>
                     <!-- 验证码输入（发送验证码后显示） -->
                     <div id="ub-code-section" style="display:none;margin-top:12px;padding:12px;background:#f5f7fa;border-radius:6px;">
