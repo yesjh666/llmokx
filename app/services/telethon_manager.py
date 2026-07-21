@@ -157,7 +157,8 @@ class TelethonClientManager:
                 self._client = None
                 self._login_state = LOGIN_STATE_ERROR
                 self._login_error = str(e)
-                logger.error(f"连接 Telegram 失败: {e}")
+                import traceback
+                logger.error(f"连接 Telegram 失败: {e}\n{traceback.format_exc()}")
                 return False, f"连接失败: {e}"
 
     async def disconnect(self):
@@ -251,7 +252,8 @@ class TelethonClientManager:
         except Exception as e:
             self._login_state = LOGIN_STATE_ERROR
             self._login_error = str(e)
-            logger.error(f"发送验证码失败: {e}")
+            import traceback
+            logger.error(f"发送验证码失败: {e}\n{traceback.format_exc()}")
             return {"success": False, "state": LOGIN_STATE_ERROR, "message": f"发送验证码失败: {e}"}
 
     async def submit_code(self, code: str) -> Dict[str, Any]:
