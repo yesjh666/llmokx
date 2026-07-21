@@ -100,9 +100,38 @@ async def root():
 @app.get("/api/health")
 async def health():
     """健康检查"""
+    from app.services.llm_analyzer import analyzer
+    from app.services.intent_forwarder import forwarder
+    from app.services.notifier import notifier
+    from app.services.telegram_monitor import monitor
+    from app.services.telethon_manager import client_manager
+
+    modules = {
+        "llm_analysis": {
+            "enabled": analyzer.is_enabled(),
+            "api_configured": bool(analyzer.config.get("api_key")),
+        },
+        "forward": {
+            "enabled": forwarder.is_enabled(),
+            "targets_count": len(forwarder.config.get("targets", [])),
+        },
+        "notification": {
+            "enabled": notifier.is_enabled(),
+            "wechat_configured": bool(notifier._wechat_cfg.get("target")),
+            "telegram_configured": bool(notifier._telegram_cfg.get("bot_token")),
+        },
+        "monitor": {
+            "enabled": monitor.is_enabled(),
+            "running": monitor.is_running(),
+            "connected": client_manager._connected,
+            "authorized": client_manager._authorized,
+        },
+    }
+
     return {
         "status": "ok",
         "version": _APP_VERSION,
         "uptime": int(time.time() - _START_TIME),
         "timestamp": time.strftime("%Y-%m-%d %H:%M:%S"),
+        "modules": modules,
     }

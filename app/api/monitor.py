@@ -9,6 +9,7 @@ from typing import Optional, List
 from app import config
 from app.services.telegram_monitor import monitor
 from app.services.message_pipeline import pipeline
+from app.services.telethon_manager import client_manager
 
 router = APIRouter()
 
@@ -113,6 +114,12 @@ async def add_chat(req: AddChatRequest):
         "chat_names": chat_names,
     })
 
+    # 热更新监听群
+    if monitor.is_running():
+        success, msg = await monitor.update_chats(chat_ids)
+        if success:
+            return {"success": True, "message": f"已添加监听群: {req.chat_id}（监听已热更新）"}
+
     return {"success": True, "message": f"已添加监听群: {req.chat_id}"}
 
 
@@ -133,6 +140,12 @@ async def remove_chat(req: RemoveChatRequest):
         "chat_ids": chat_ids,
         "chat_names": chat_names,
     })
+
+    # 热更新监听群
+    if monitor.is_running():
+        success, msg = await monitor.update_chats(chat_ids)
+        if success:
+            return {"success": True, "message": f"已移除监听群: {req.chat_id}（监听已热更新）"}
 
     return {"success": True, "message": f"已移除监听群: {req.chat_id}"}
 
@@ -207,46 +220,31 @@ async def test_userbot_connection():
     if not cfg.get("api_id") or not cfg.get("api_hash"):
         return {"success": False, "message": "api_id 或 api_hash 未配置"}
 
-    try:
-        from telethon import TelegramClient
-    except ImportError:
-        return {"success": False, "message": "telethon 未安装，请运行: pip install telethon"}
-
-    api_id = cfg["api_id"]
-    api_hash = cfg["api_hash"]
-    session_file = cfg.get("session_file", "config/userbot_session")
     phone = cfg.get("phone_number", "")
+    success, msg = await client_manager.ensure_connected()
 
-    if not os.path.isabs(session_file):
-        session_file = os.path.join(_BASE_DIR, session_file)
+    if not success:
+        return {"success": False, "message": msg}
 
-    try:
-        client = TelegramClient(session_file, api_id, api_hash)
-        await client.connect()
-
-        if not await client.is_user_authorized():
-            if not phone:
-                await client.disconnect()
-                return {"success": False, "message": "未授权且未配置手机号，请先填写手机号"}
-
-            # 发送验证码
-            await client.send_code_request(phone)
-            # 断开连接，等待用户输入验证码后调用 /userbot/login
-            await client.disconnect()
-            return {
-                "success": False,
-                "need_code": True,
-                "message": f"验证码已发送到 {phone}，请在下方输入验证码",
-            }
-
-        me = await client.get_me()
-        await client.disconnect()
+    if client_manager._authorized:
+        me = client_manager._me
         return {
             "success": True,
-            "message": f"连接成功: {me.first_name} (ID: {me.id}, 手机: {me.phone})",
+            "message": f"已登录: {me.first_name} (ID: {me.id}, 手机: {me.phone})" if me else "已登录",
         }
-    except Exception as e:
-        return {"success": False, "message": f"连接失败: {e}"}
+
+    if not phone:
+        return {"success": False, "message": "未授权且未配置手机号，请先填写手机号"}
+
+    # 发送验证码
+    success, msg, need_code = await client_manager.send_code_request(phone)
+    if need_code:
+        return {
+            "success": False,
+            "need_code": True,
+            "message": msg,
+        }
+    return {"success": success, "message": msg}
 
 
 @router.post("/userbot/login")
@@ -256,35 +254,6 @@ async def login_with_code(code: str):
     if not cfg.get("api_id") or not cfg.get("api_hash"):
         return {"success": False, "message": "api_id 或 api_hash 未配置"}
 
-    try:
-        from telethon import TelegramClient
-    except ImportError:
-        return {"success": False, "message": "telethon 未安装"}
-
-    api_id = cfg["api_id"]
-    api_hash = cfg["api_hash"]
-    session_file = cfg.get("session_file", "config/userbot_session")
     phone = cfg.get("phone_number", "")
-
-    if not os.path.isabs(session_file):
-        session_file = os.path.join(_BASE_DIR, session_file)
-
-    try:
-        client = TelegramClient(session_file, api_id, api_hash)
-        await client.connect()
-
-        if await client.is_user_authorized():
-            me = await client.get_me()
-            await client.disconnect()
-            return {"success": True, "message": f"已登录: {me.first_name} (ID: {me.id})"}
-
-        # 用验证码登录
-        await client.sign_in(phone, code)
-        me = await client.get_me()
-        await client.disconnect()
-        return {
-            "success": True,
-            "message": f"登录成功: {me.first_name} (ID: {me.id}, 手机: {me.phone})",
-        }
-    except Exception as e:
-        return {"success": False, "message": f"登录失败: {e}"}
+    success, msg = await client_manager.sign_in(phone, code)
+    return {"success": success, "message": msg}

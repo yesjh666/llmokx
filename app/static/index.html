@@ -595,11 +595,12 @@
             <div class="card">
                 <div class="card-header">
                     <span class="card-title">操作统计</span>
-                    <select id="log-stats-module" class="form-select" style="width:auto;" onchange="loadLogStats()">
-                        <option value="llm_analysis">LLM分析</option>
-                        <option value="forward">转发</option>
-                        <option value="notification">通知</option>
-                    </select>
+                        <select id="log-stats-module" class="form-select" style="width:auto;" onchange="loadLogStats()">
+                            <option value="llm_analysis">LLM分析</option>
+                            <option value="forward">转发</option>
+                            <option value="notification">通知</option>
+                            <option value="monitor">监听</option>
+                        </select>
                 </div>
                 <div id="log-stats-display"></div>
             </div>
@@ -614,6 +615,7 @@
                             <option value="llm_analysis">LLM分析</option>
                             <option value="forward">转发</option>
                             <option value="notification">通知</option>
+                            <option value="monitor">监听</option>
                         </select>
                         <select id="log-tail-level" class="form-select" style="width:auto;">
                             <option value="">全部级别</option>
@@ -645,6 +647,7 @@
                             <option value="llm_analysis">LLM分析</option>
                             <option value="forward">转发</option>
                             <option value="notification">通知</option>
+                            <option value="monitor">监听</option>
                         </select>
                         <select id="log-records-limit" class="form-select" style="width:auto;">
                             <option value="20">20条</option>

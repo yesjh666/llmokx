@@ -38,14 +38,16 @@ class IntentForwarder:
         intent_result: dict,
         text: str,
         source_chat: str = "未知群",
+        max_retries: int = 2,
     ) -> Dict[str, Any]:
         """
-        将提取的意图转发到配置的目标群
+        将提取的意图转发到配置的目标群（带重试）
 
         Args:
             intent_result: LLM分析的单个意图结果
             text: 原始消息文本
             source_chat: 消息来源
+            max_retries: 每个目标的最大重试次数
 
         Returns:
             dict: {
@@ -90,22 +92,33 @@ class IntentForwarder:
         signal_data = self._build_signal_data(intent_result, text, source_chat)
         msg = json.dumps(signal_data, ensure_ascii=False, indent=2)
 
-        # 发送到每个目标
+        # 发送到每个目标（带重试）
         forwarded = []
         errors = []
 
         for target_config in targets:
-            try:
-                success, info = await self._send_to_target(target_config, msg)
-                if success:
-                    forwarded.append(target_config.get("target", ""))
-                    logger.info(f"转发成功: {target_config.get('target')} ({info})")
-                else:
-                    errors.append(f"{target_config.get('target')}: {info}")
-                    logger.warning(f"转发失败: {target_config.get('target')} - {info}")
-            except Exception as e:
-                errors.append(f"{target_config.get('target')}: {str(e)}")
-                logger.error(f"转发异常: {e}")
+            target_name = target_config.get("target", "")
+            sent = False
+
+            for attempt in range(1, max_retries + 1):
+                try:
+                    success, info = await self._send_to_target(target_config, msg)
+                    if success:
+                        forwarded.append(target_name)
+                        logger.info(f"转发成功: {target_name} (第{attempt}次, {info})")
+                        sent = True
+                        break
+                    else:
+                        logger.warning(f"转发失败: {target_name} (第{attempt}/{max_retries}次): {info}")
+                        if attempt < max_retries:
+                            await asyncio.sleep(1)
+                except Exception as e:
+                    logger.error(f"转发异常: {target_name} (第{attempt}/{max_retries}次): {e}")
+                    if attempt < max_retries:
+                        await asyncio.sleep(1)
+
+            if not sent:
+                errors.append(f"{target_name}: 重试{max_retries}次后仍失败")
 
         result = {
             "success": len(forwarded) > 0,
@@ -267,9 +280,11 @@ class IntentForwarder:
             return False, f"Bot API异常: {e}"
 
     async def _send_via_userbot(self, chat_id, text: str) -> tuple:
-        """通过 Telegram Userbot 发送（以用户身份）"""
-        userbot_config_file = self.config.get("userbot_config_file", "config/telegram_userbot.json")
+        """通过 Telegram Userbot 发送（复用统一 client）"""
+        from app.services.telethon_manager import client_manager
 
+        # 检查 userbot 是否启用
+        userbot_config_file = self.config.get("userbot_config_file", "config/telegram_userbot.json")
         config_path = os.path.join(
             os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))),
             userbot_config_file,
@@ -287,42 +302,7 @@ class IntentForwarder:
         if not ub_config.get("enabled", False):
             return False, "Userbot未启用"
 
-        try:
-            from telethon import TelegramClient
-        except ImportError:
-            return False, "telethon未安装"
-
-        api_id = ub_config.get("api_id")
-        api_hash = ub_config.get("api_hash")
-        session_file = ub_config.get("session_file")
-
-        if not all([api_id, api_hash, session_file]):
-            return False, "Userbot配置不完整"
-
-        target_id = int(chat_id) if isinstance(chat_id, str) else chat_id
-
-        try:
-            loop = asyncio.new_event_loop()
-            asyncio.set_event_loop(loop)
-
-            client = TelegramClient(session_file, api_id, api_hash, loop=loop)
-
-            async def send():
-                await client.connect()
-                if not await client.is_user_authorized():
-                    return False, "Userbot未授权"
-                await client.send_message(target_id, text, parse_mode="html")
-                return True, "发送成功"
-
-            success, msg = loop.run_until_complete(send())
-            try:
-                await client.disconnect()
-            except Exception:
-                pass
-            loop.close()
-            return success, msg
-        except Exception as e:
-            return False, f"Userbot发送异常: {e}"
+        return await client_manager.send_message(chat_id, text, parse_mode="html")
 
     async def _send_via_openclaw(self, channel: str, target: str, text: str) -> tuple:
         """通过 openclaw message send 命令发送（其他通道）"""

@@ -885,7 +885,7 @@ async function loadLogFiles() {
         html += '<th>模块</th><th>文件</th><th>大小</th><th>行数</th><th>错误</th><th>警告</th><th>结构化记录</th>';
         html += '</tr></thead><tbody>';
 
-        for (const key of ['app', 'llm_analysis', 'forward', 'notification']) {
+        for (const key of ['app', 'llm_analysis', 'forward', 'notification', 'monitor']) {
             const info = data[key];
             if (!info) continue;
             html += '<tr>';

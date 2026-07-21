@@ -4,7 +4,10 @@
 """
 import time
 import logging
+import asyncio
+import hashlib
 from typing import Dict, Any, Optional
+from collections import OrderedDict
 
 from app import config
 from app.core.logging_config import get_logger
@@ -19,17 +22,52 @@ logger = get_logger("app")
 class MessagePipeline:
     """消息处理管道"""
 
+    # 最大并发 LLM 请求数
+    MAX_CONCURRENT_LLM = 3
+    # LLM 结果缓存时间（秒）
+    CACHE_TTL = 60
+    # 缓存最大条数
+    CACHE_MAX = 100
+
     def __init__(self):
         self._stats = {
             "total_received": 0,
             "total_analyzed": 0,
             "total_forwarded": 0,
             "total_notified": 0,
+            "total_cached": 0,
             "errors": 0,
             "last_message_time": None,
             "last_message_text": None,
             "last_intent": None,
         }
+        self._llm_semaphore = asyncio.Semaphore(self.MAX_CONCURRENT_LLM)
+        self._cache: OrderedDict = OrderedDict()  # text_hash -> (result, timestamp)
+
+    def _get_cache_key(self, text: str) -> str:
+        """生成缓存 key"""
+        return hashlib.md5(text.strip().lower().encode()).hexdigest()
+
+    def _get_cached(self, text: str) -> Optional[dict]:
+        """获取缓存的分析结果"""
+        key = self._get_cache_key(text)
+        if key in self._cache:
+            result, ts = self._cache[key]
+            if time.time() - ts < self.CACHE_TTL:
+                # 移到最后（LRU）
+                self._cache.move_to_end(key)
+                return result
+            else:
+                del self._cache[key]
+        return None
+
+    def _set_cached(self, text: str, result: dict):
+        """缓存分析结果"""
+        key = self._get_cache_key(text)
+        self._cache[key] = (result, time.time())
+        # 限制缓存大小
+        while len(self._cache) > self.CACHE_MAX:
+            self._cache.popitem(last=False)
 
     async def process_message(
         self,
@@ -90,11 +128,21 @@ class MessagePipeline:
             result["message"] = "不含关键词"
             return result
 
-        # Step 1: LLM 分析
+        # 检查缓存
+        cached = self._get_cached(text)
+        if cached:
+            self._stats["total_cached"] += 1
+            logger.info(f"[管道] 使用缓存结果: {text[:50]}...")
+            result.update(cached)
+            result["cached"] = True
+            return result
+
+        # Step 1: LLM 分析（带并发控制）
         context_str = pipeline_cfg.get("default_context", "无持仓无挂单")
         logger.info(f"[管道] 开始 LLM 分析: {text[:80]}...")
 
-        analysis = await analyzer.analyze_intent(text, context_str)
+        async with self._llm_semaphore:
+            analysis = await analyzer.analyze_intent(text, context_str)
 
         if not analysis.get("success"):
             logger.warning(f"LLM 分析失败: {analysis.get('error')}")
@@ -154,6 +202,13 @@ class MessagePipeline:
         result["message"] = f"处理完成 ({len(intents)}个意图, {elapsed:.1f}s)"
 
         self._stats["last_intent"] = intents[0].get("intent", "") if intents else ""
+
+        # 缓存成功结果
+        self._set_cached(text, {
+            "analyzed": True,
+            "intents": intents,
+            "elapsed": analysis.get("elapsed", 0),
+        })
 
         logger.info(
             f"[管道] 处理完成: 意图={len(intents)} "

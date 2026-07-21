@@ -72,6 +72,12 @@ LOG_MODULES = {
         "description": "通知日志",
         "record_file": "notification.jsonl",
     },
+    "monitor": {
+        "file": "monitor.log",
+        "logger": "app.services.telegram_monitor",
+        "level": logging.INFO,
+        "description": "Telegram监听日志",
+    },
 }
 
 _initialized = False

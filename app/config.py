@@ -140,7 +140,11 @@ def update_section(section: str, data: dict) -> bool:
     if section not in config:
         config[section] = {}
     config[section].update(data)
-    return save_config(config)
+    result = save_config(config)
+    # 保存后清除缓存，确保下次读取的是最新值
+    if result:
+        reload_config()
+    return result
 
 
 def get_section(section: str) -> dict:
