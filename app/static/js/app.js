@@ -40,9 +40,7 @@ function showPage(pageId) {
         dashboard: loadDashboard,
         llm: loadLLMConfig,
         prompts: loadPrompts,
-        forward: loadForwardConfig,
-        notification: loadNotificationConfig,
-        monitor: loadMonitorPage,
+        pipeline: loadPipelinePage,
         logs: loadLogFiles,
         update: loadUpdateVersion,
         settings: loadSettings,
@@ -370,6 +368,104 @@ async function reloadPrompts() {
     }
 }
 
+// ==================== 消息处理（合并页面） ====================
+async function loadPipelinePage() {
+    await Promise.all([
+        loadMonitorConfig(),
+        loadForwardConfig(),
+        loadNotificationConfig(),
+        loadUserbotConfig(),
+        loadPipelineStatus(),
+    ]);
+}
+
+async function loadPipelineStatus() {
+    try {
+        const data = await api('/api/monitor/status');
+        const container = document.getElementById('pipeline-status-display');
+
+        const fwdCfg = await api('/api/forward/config');
+        const notifyCfg = await api('/api/notification/config');
+
+        const statusBadge = data.running
+            ? '<span class="badge badge-success">运行中</span>'
+            : '<span class="badge badge-info">已停止</span>';
+        const connectedBadge = data.connected
+            ? '<span class="badge badge-success">已连接</span>'
+            : '<span class="badge badge-warning">未连接</span>';
+        const fwdBadge = fwdCfg.enabled !== false
+            ? '<span class="badge badge-success">已启用</span>'
+            : '<span class="badge badge-danger">已禁用</span>';
+        const notifyBadge = notifyCfg.enabled !== false
+            ? '<span class="badge badge-success">已启用</span>'
+            : '<span class="badge badge-danger">已禁用</span>';
+
+        container.innerHTML = `
+            <div class="stats-grid" style="margin-bottom:0;">
+                <div class="stat-card">
+                    <div class="stat-label">监听状态</div>
+                    <div class="stat-value">${statusBadge}</div>
+                    <div style="font-size:12px;margin-top:4px;">${connectedBadge}</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">转发功能</div>
+                    <div class="stat-value">${fwdBadge}</div>
+                    <div style="font-size:12px;margin-top:4px;">目标: ${(fwdCfg.targets || []).length}个</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">通知功能</div>
+                    <div class="stat-value">${notifyBadge}</div>
+                    <div style="font-size:12px;margin-top:4px;">监听群: ${(data.chat_ids || []).length}个</div>
+                </div>
+            </div>`;
+
+        // 统计数据
+        const s = data.stats || {};
+        document.getElementById('monitor-stats-display').innerHTML = `
+            <div class="stats-grid" style="margin-bottom:0;">
+                <div class="stat-card">
+                    <div class="stat-label">收到消息</div>
+                    <div class="stat-value">${s.total_received || 0}</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">已分析</div>
+                    <div class="stat-value">${s.total_analyzed || 0}</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">已转发</div>
+                    <div class="stat-value">${s.total_forwarded || 0}</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">已通知</div>
+                    <div class="stat-value">${s.total_notified || 0}</div>
+                </div>
+            </div>
+            ${s.last_message_time ? `<div style="margin-top:12px;font-size:13px;color:#909399;">
+                最近消息: ${escapeHtml(s.last_message_time)} | ${escapeHtml(s.last_message_text || '')}
+                ${s.last_intent ? ' | 意图: ' + escapeHtml(s.last_intent) : ''}
+            </div>` : ''}`;
+
+        document.getElementById('btn-monitor-start').disabled = data.running;
+        document.getElementById('btn-monitor-stop').disabled = !data.running;
+    } catch (e) {
+        toast('加载状态失败: ' + e.message, 'error');
+    }
+}
+
+async function saveSharedBotToken() {
+    const token = document.getElementById('shared-bot-token').value.trim();
+    if (!token) { toast('请输入 Bot Token', 'warning'); return; }
+    try {
+        // 同时保存到 forward 和 notification 配置
+        await api('/api/forward/config', { method: 'PUT', body: JSON.stringify({ telegram_bot_token: token }) });
+        await api('/api/notification/config', { method: 'PUT', body: JSON.stringify({ telegram: { bot_token: token } }) });
+        toast('Bot Token 已保存（转发+通知共用）', 'success');
+        document.getElementById('shared-bot-token').value = '';
+    } catch (e) {
+        toast('保存失败: ' + e.message, 'error');
+    }
+}
+
 // ==================== 转发管理 ====================
 async function loadForwardConfig() {
     try {
@@ -377,10 +473,6 @@ async function loadForwardConfig() {
         document.getElementById('forward-enabled').checked = cfg.enabled !== false;
         document.getElementById('forward-userbot-enabled').checked = cfg.userbot_enabled !== false;
         document.getElementById('forward-skip-intents').value = (cfg.skip_intents || ['chat', 'query']).join(', ');
-        document.getElementById('forward-bot-token').value = '';
-        if (cfg.bot_token_configured) {
-            document.getElementById('forward-bot-token').placeholder = cfg.telegram_bot_token_masked || '已配置';
-        }
         await loadForwardTargets();
     } catch (e) {
         toast('加载转发配置失败: ' + e.message, 'error');
@@ -419,12 +511,9 @@ async function saveForwardConfig() {
         userbot_enabled: document.getElementById('forward-userbot-enabled').checked,
         skip_intents: skipStr ? skipStr.split(',').map(s => s.trim()) : [],
     };
-    const token = document.getElementById('forward-bot-token').value;
-    if (token) data.telegram_bot_token = token;
     try {
         await api('/api/forward/config', { method: 'PUT', body: JSON.stringify(data) });
         toast('转发配置已保存', 'success');
-        loadForwardConfig();
     } catch (e) {
         toast('保存失败: ' + e.message, 'error');
     }
@@ -491,16 +580,11 @@ async function loadNotificationConfig() {
         document.getElementById('notify-use-openclaw').checked = wechat.use_openclaw !== false;
         document.getElementById('notify-wechat-target').value = wechat.target || '';
         document.getElementById('notify-wechat-account').value = wechat.account || '';
-        document.getElementById('notify-wechat-channel').value = wechat.channel || 'openclaw-weixin';
         document.getElementById('notify-webhook-url').value = wechat.webhook_url || '';
 
-        // Telegram通道
+        // Telegram通道（bot_token 在共享配置区管理）
         const telegram = cfg.telegram || {};
         document.getElementById('notify-telegram-enabled').checked = telegram.enabled !== false;
-        document.getElementById('notify-telegram-bot-token').value = '';
-        if (telegram.bot_token) {
-            document.getElementById('notify-telegram-bot-token').placeholder = '已配置(输入新值覆盖)';
-        }
         document.getElementById('notify-telegram-chat-id').value = telegram.chat_id || '';
         document.getElementById('notify-telegram-parse-mode').value = telegram.parse_mode || 'HTML';
         document.getElementById('notify-telegram-disable-notification').checked = telegram.disable_notification || false;
@@ -552,8 +636,6 @@ async function saveTelegramConfig() {
             disable_notification: document.getElementById('notify-telegram-disable-notification').checked,
         },
     };
-    const token = document.getElementById('notify-telegram-bot-token').value;
-    if (token) data.telegram.bot_token = token;
     try {
         await api('/api/notification/config', { method: 'PUT', body: JSON.stringify(data) });
         toast('Telegram配置已保存', 'success');
@@ -623,10 +705,6 @@ async function reloadAllConfig() {
 }
 
 // ==================== 监听管理 ====================
-async function loadMonitorPage() {
-    await Promise.all([loadMonitorConfig(), loadMonitorStatus(), loadUserbotConfig()]);
-}
-
 async function loadMonitorConfig() {
     try {
         const cfg = await api('/api/monitor/config');
@@ -703,11 +781,13 @@ async function removeMonitorChat(chatId) {
     }
 }
 
-async function loadMonitorStatus() {
+async function loadPipelineStatus() {
     try {
         const data = await api('/api/monitor/status');
-        const container = document.getElementById('monitor-status-display');
-        const statsContainer = document.getElementById('monitor-stats-display');
+        const container = document.getElementById('pipeline-status-display');
+
+        const fwdCfg = await api('/api/forward/config');
+        const notifyCfg = await api('/api/notification/config');
 
         const statusBadge = data.running
             ? '<span class="badge badge-success">运行中</span>'
@@ -715,26 +795,35 @@ async function loadMonitorStatus() {
         const connectedBadge = data.connected
             ? '<span class="badge badge-success">已连接</span>'
             : '<span class="badge badge-warning">未连接</span>';
+        const fwdBadge = fwdCfg.enabled !== false
+            ? '<span class="badge badge-success">已启用</span>'
+            : '<span class="badge badge-danger">已禁用</span>';
+        const notifyBadge = notifyCfg.enabled !== false
+            ? '<span class="badge badge-success">已启用</span>'
+            : '<span class="badge badge-danger">已禁用</span>';
 
         container.innerHTML = `
             <div class="stats-grid" style="margin-bottom:0;">
                 <div class="stat-card">
                     <div class="stat-label">监听状态</div>
                     <div class="stat-value">${statusBadge}</div>
+                    <div style="font-size:12px;margin-top:4px;">${connectedBadge}</div>
                 </div>
                 <div class="stat-card">
-                    <div class="stat-label">Telegram连接</div>
-                    <div class="stat-value">${connectedBadge}</div>
+                    <div class="stat-label">转发功能</div>
+                    <div class="stat-value">${fwdBadge}</div>
+                    <div style="font-size:12px;margin-top:4px;">目标: ${(fwdCfg.targets || []).length}个</div>
                 </div>
                 <div class="stat-card">
-                    <div class="stat-label">监听群数</div>
-                    <div class="stat-value">${(data.chat_ids || []).length}</div>
+                    <div class="stat-label">通知功能</div>
+                    <div class="stat-value">${notifyBadge}</div>
+                    <div style="font-size:12px;margin-top:4px;">监听群: ${(data.chat_ids || []).length}个</div>
                 </div>
             </div>`;
 
         // 统计数据
         const s = data.stats || {};
-        statsContainer.innerHTML = `
+        document.getElementById('monitor-stats-display').innerHTML = `
             <div class="stats-grid" style="margin-bottom:0;">
                 <div class="stat-card">
                     <div class="stat-label">收到消息</div>
@@ -758,11 +847,10 @@ async function loadMonitorStatus() {
                 ${s.last_intent ? ' | 意图: ' + escapeHtml(s.last_intent) : ''}
             </div>` : ''}`;
 
-        // 按钮状态
         document.getElementById('btn-monitor-start').disabled = data.running;
         document.getElementById('btn-monitor-stop').disabled = !data.running;
     } catch (e) {
-        toast('加载监听状态失败: ' + e.message, 'error');
+        toast('加载状态失败: ' + e.message, 'error');
     }
 }
 
@@ -771,7 +859,7 @@ async function startMonitor() {
         toast('正在启动监听...', 'info');
         const result = await api('/api/monitor/start', { method: 'POST' });
         toast(result.message, result.success ? 'success' : 'error');
-        setTimeout(loadMonitorStatus, 2000);
+        setTimeout(loadPipelineStatus, 2000);
     } catch (e) {
         toast('启动失败: ' + e.message, 'error');
     }
@@ -781,7 +869,7 @@ async function stopMonitor() {
     try {
         const result = await api('/api/monitor/stop', { method: 'POST' });
         toast(result.message, result.success ? 'success' : 'error');
-        loadMonitorStatus();
+        loadPipelineStatus();
     } catch (e) {
         toast('停止失败: ' + e.message, 'error');
     }
