@@ -202,7 +202,7 @@ async def update_userbot_config(req: UserbotConfigUpdate):
 
 @router.post("/userbot/test")
 async def test_userbot_connection():
-    """测试 Telegram 连接"""
+    """测试 Telegram 连接（自动处理登录流程）"""
     cfg = _load_userbot_config()
     if not cfg.get("api_id") or not cfg.get("api_hash"):
         return {"success": False, "message": "api_id 或 api_hash 未配置"}
@@ -215,13 +215,30 @@ async def test_userbot_connection():
     api_id = cfg["api_id"]
     api_hash = cfg["api_hash"]
     session_file = cfg.get("session_file", "config/userbot_session")
+    phone = cfg.get("phone_number", "")
 
     if not os.path.isabs(session_file):
         session_file = os.path.join(_BASE_DIR, session_file)
 
     try:
         client = TelegramClient(session_file, api_id, api_hash)
-        await client.start()
+        await client.connect()
+
+        if not await client.is_user_authorized():
+            if not phone:
+                await client.disconnect()
+                return {"success": False, "message": "未授权且未配置手机号，请先填写手机号"}
+
+            # 发送验证码
+            await client.send_code_request(phone)
+            # 断开连接，等待用户输入验证码后调用 /userbot/login
+            await client.disconnect()
+            return {
+                "success": False,
+                "need_code": True,
+                "message": f"验证码已发送到 {phone}，请在下方输入验证码",
+            }
+
         me = await client.get_me()
         await client.disconnect()
         return {
@@ -230,3 +247,44 @@ async def test_userbot_connection():
         }
     except Exception as e:
         return {"success": False, "message": f"连接失败: {e}"}
+
+
+@router.post("/userbot/login")
+async def login_with_code(code: str):
+    """用验证码完成 Telegram 登录"""
+    cfg = _load_userbot_config()
+    if not cfg.get("api_id") or not cfg.get("api_hash"):
+        return {"success": False, "message": "api_id 或 api_hash 未配置"}
+
+    try:
+        from telethon import TelegramClient
+    except ImportError:
+        return {"success": False, "message": "telethon 未安装"}
+
+    api_id = cfg["api_id"]
+    api_hash = cfg["api_hash"]
+    session_file = cfg.get("session_file", "config/userbot_session")
+    phone = cfg.get("phone_number", "")
+
+    if not os.path.isabs(session_file):
+        session_file = os.path.join(_BASE_DIR, session_file)
+
+    try:
+        client = TelegramClient(session_file, api_id, api_hash)
+        await client.connect()
+
+        if await client.is_user_authorized():
+            me = await client.get_me()
+            await client.disconnect()
+            return {"success": True, "message": f"已登录: {me.first_name} (ID: {me.id})"}
+
+        # 用验证码登录
+        await client.sign_in(phone, code)
+        me = await client.get_me()
+        await client.disconnect()
+        return {
+            "success": True,
+            "message": f"登录成功: {me.first_name} (ID: {me.id}, 手机: {me.phone})",
+        }
+    except Exception as e:
+        return {"success": False, "message": f"登录失败: {e}"}

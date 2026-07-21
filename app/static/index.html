@@ -521,6 +521,14 @@
                     <button class="btn btn-success" onclick="testUserbotConnection()">测试连接</button>
                 </div>
                 <div id="ub-test-result" style="margin-top:8px;"></div>
+                <!-- 验证码输入（隐藏，发送验证码后显示） -->
+                <div id="ub-code-section" style="display:none;margin-top:12px;padding:12px;background:#f5f7fa;border-radius:6px;">
+                    <div class="form-group" style="margin-bottom:8px;">
+                        <label class="form-label">请输入收到的验证码</label>
+                        <input type="text" class="form-input" id="ub-code" placeholder="输入验证码">
+                    </div>
+                    <button class="btn btn-success" onclick="loginWithCode()">确认登录</button>
+                </div>
             </div>
 
             <!-- 监听群管理 -->
