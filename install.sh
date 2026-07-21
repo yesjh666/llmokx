@@ -500,8 +500,11 @@ deploy_files() {
     if [[ ! -d "$INSTALL_DIR/.git" ]]; then
         log_info "初始化 git 仓库..."
         cd "$INSTALL_DIR"
-        $SUDO git init -q 2>/dev/null || true
+        $SUDO git init -b main -q 2>/dev/null || $SUDO git init -q
         $SUDO git remote add origin "$REPO_URL" 2>/dev/null || true
+        $SUDO git fetch origin -q 2>/dev/null || true
+        $SUDO git checkout -b main origin/main 2>/dev/null || $SUDO git checkout main 2>/dev/null || true
+        $SUDO git branch --set-upstream-to=origin/main main 2>/dev/null || true
         cd - >/dev/null
     fi
 
