@@ -624,7 +624,7 @@ async function reloadAllConfig() {
 
 // ==================== 监听管理 ====================
 async function loadMonitorPage() {
-    await Promise.all([loadMonitorConfig(), loadMonitorStatus()]);
+    await Promise.all([loadMonitorConfig(), loadMonitorStatus(), loadUserbotConfig()]);
 }
 
 async function loadMonitorConfig() {
@@ -797,6 +797,55 @@ async function testMonitorPipeline() {
         container.innerHTML = formatJSON(result);
     } catch (e) {
         container.innerHTML = `<div style="color:#f56c6c;">错误: ${e.message}</div>`;
+    }
+}
+
+// ==================== Userbot 配置 ====================
+async function loadUserbotConfig() {
+    try {
+        const cfg = await api('/api/monitor/userbot');
+        document.getElementById('ub-enabled').checked = cfg.enabled !== false;
+        document.getElementById('ub-api-id').value = cfg.api_id || '';
+        document.getElementById('ub-api-hash').value = '';
+        if (cfg.api_hash_configured) {
+            document.getElementById('ub-api-hash').placeholder = '已配置(输入新值覆盖)';
+        }
+        document.getElementById('ub-phone').value = cfg.phone_number || '';
+        document.getElementById('ub-session').value = cfg.session_file || 'config/userbot_session';
+    } catch (e) {
+        toast('加载 Userbot 配置失败: ' + e.message, 'error');
+    }
+}
+
+async function saveUserbotConfig() {
+    const data = {
+        enabled: document.getElementById('ub-enabled').checked,
+        api_id: parseInt(document.getElementById('ub-api-id').value) || null,
+        phone_number: document.getElementById('ub-phone').value.trim(),
+        session_file: document.getElementById('ub-session').value.trim(),
+    };
+    const hash = document.getElementById('ub-api-hash').value;
+    if (hash && !hash.includes('****')) data.api_hash = hash;
+    try {
+        await api('/api/monitor/userbot', { method: 'PUT', body: JSON.stringify(data) });
+        toast('Userbot 配置已保存', 'success');
+    } catch (e) {
+        toast('保存失败: ' + e.message, 'error');
+    }
+}
+
+async function testUserbotConnection() {
+    const container = document.getElementById('ub-test-result');
+    container.innerHTML = '<div style="color:#909399;">连接中...</div>';
+    try {
+        const result = await api('/api/monitor/userbot/test', { method: 'POST' });
+        if (result.success) {
+            container.innerHTML = `<div style="color:#67c23a;">✓ ${escapeHtml(result.message)}</div>`;
+        } else {
+            container.innerHTML = `<div style="color:#f56c6c;">✗ ${escapeHtml(result.message)}</div>`;
+        }
+    } catch (e) {
+        container.innerHTML = `<div style="color:#f56c6c;">✗ ${e.message}</div>`;
     }
 }
 

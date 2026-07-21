@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
 """Telegram 监听管理 API"""
+import os
+import json
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 from typing import Optional, List
@@ -9,6 +11,10 @@ from app.services.telegram_monitor import monitor
 from app.services.message_pipeline import pipeline
 
 router = APIRouter()
+
+# 项目根目录
+_BASE_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+USERBOT_CONFIG_FILE = os.path.join(_BASE_DIR, "config", "telegram_userbot.json")
 
 
 class MonitorConfigUpdate(BaseModel):
@@ -29,6 +35,14 @@ class AddChatRequest(BaseModel):
 
 class RemoveChatRequest(BaseModel):
     chat_id: str
+
+
+class UserbotConfigUpdate(BaseModel):
+    api_id: Optional[int] = None
+    api_hash: Optional[str] = None
+    phone_number: Optional[str] = None
+    session_file: Optional[str] = None
+    enabled: Optional[bool] = None
 
 
 @router.get("/config")
@@ -133,3 +147,86 @@ async def test_pipeline(text: str = "BTC 做多 60000 止盈65000 止损58000"):
         sender="测试用户",
     )
     return result
+
+
+# ==================== Userbot 配置 ====================
+
+def _load_userbot_config() -> dict:
+    """读取 userbot 配置"""
+    if not os.path.exists(USERBOT_CONFIG_FILE):
+        return {"api_id": None, "api_hash": "", "phone_number": "", "session_file": "config/userbot_session", "enabled": False}
+    try:
+        with open(USERBOT_CONFIG_FILE, "r", encoding="utf-8") as f:
+            return json.load(f)
+    except Exception:
+        return {}
+
+
+def _save_userbot_config(data: dict) -> bool:
+    """保存 userbot 配置"""
+    try:
+        existing = _load_userbot_config()
+        existing.update(data)
+        # 移除说明字段
+        existing.pop("说明", None)
+        with open(USERBOT_CONFIG_FILE, "w", encoding="utf-8") as f:
+            json.dump(existing, f, ensure_ascii=False, indent=2)
+        return True
+    except Exception as e:
+        return False
+
+
+@router.get("/userbot")
+async def get_userbot_config():
+    """获取 Telegram Userbot 配置"""
+    cfg = _load_userbot_config()
+    # 脱敏
+    result = dict(cfg)
+    if result.get("api_hash"):
+        h = result["api_hash"]
+        result["api_hash"] = h[:4] + "****" + h[-4:] if len(h) > 8 else "****"
+        result["api_hash_configured"] = True
+    result.pop("说明", None)
+    return result
+
+
+@router.put("/userbot")
+async def update_userbot_config(req: UserbotConfigUpdate):
+    """更新 Telegram Userbot 配置"""
+    data = {k: v for k, v in req.model_dump().items() if v is not None}
+    if not data:
+        raise HTTPException(status_code=400, detail="没有要更新的字段")
+    success = _save_userbot_config(data)
+    return {"success": success, "message": "配置已更新" if success else "更新失败"}
+
+
+@router.post("/userbot/test")
+async def test_userbot_connection():
+    """测试 Telegram 连接"""
+    cfg = _load_userbot_config()
+    if not cfg.get("api_id") or not cfg.get("api_hash"):
+        return {"success": False, "message": "api_id 或 api_hash 未配置"}
+
+    try:
+        from telethon import TelegramClient
+    except ImportError:
+        return {"success": False, "message": "telethon 未安装，请运行: pip install telethon"}
+
+    api_id = cfg["api_id"]
+    api_hash = cfg["api_hash"]
+    session_file = cfg.get("session_file", "config/userbot_session")
+
+    if not os.path.isabs(session_file):
+        session_file = os.path.join(_BASE_DIR, session_file)
+
+    try:
+        client = TelegramClient(session_file, api_id, api_hash)
+        await client.start()
+        me = await client.get_me()
+        await client.disconnect()
+        return {
+            "success": True,
+            "message": f"连接成功: {me.first_name} (ID: {me.id}, 手机: {me.phone})",
+        }
+    except Exception as e:
+        return {"success": False, "message": f"连接失败: {e}"}
