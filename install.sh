@@ -503,19 +503,33 @@ setup_python_env() {
         log_skip "虚拟环境已存在"
     fi
 
+    VENV_PYTHON="$VENV_DIR/bin/python"
+    VENV_PIP="$VENV_DIR/bin/pip"
+
+    # 确保 venv 中有 pip
+    if [[ ! -f "$VENV_PIP" ]]; then
+        log_warn "venv 中 pip 不存在，尝试通过 ensurepip 安装..."
+        $SUDO $VENV_PYTHON -m ensurepip --upgrade 2>/dev/null || true
+    fi
+    if [[ ! -f "$VENV_PIP" ]]; then
+        log_warn "ensurepip 失败，尝试通过 get-pip.py 安装..."
+        curl -sS https://bootstrap.pypa.io/get-pip.py | $SUDO $VENV_PYTHON 2>/dev/null || true
+    fi
+    if [[ ! -f "$VENV_PIP" ]]; then
+        log_error "pip 安装失败，请手动安装: sudo apt install python3-pip"
+        exit 1
+    fi
+
     # 激活虚拟环境
     # shellcheck disable=SC1091
     source "$VENV_DIR/bin/activate"
 
-    VENV_PYTHON="$VENV_DIR/bin/python"
-    VENV_PIP="$VENV_DIR/bin/pip"
-
     # 升级 pip
     log_info "升级 pip..."
     if [[ -n "$PIP_INDEX_URL" ]]; then
-        $SUDO $VENV_PIP install --upgrade pip -i "$PIP_INDEX_URL" --quiet 2>&1 | tail -2
+        $VENV_PIP install --upgrade pip -i "$PIP_INDEX_URL" --quiet 2>&1 | tail -2
     else
-        $SUDO $VENV_PIP install --upgrade pip --quiet 2>&1 | tail -2
+        $VENV_PIP install --upgrade pip --quiet 2>&1 | tail -2
     fi
 
     # 读取 requirements.txt 并逐个检查
@@ -550,9 +564,9 @@ setup_python_env() {
             done
 
             if [[ -n "$PIP_INDEX_URL" ]]; then
-                $SUDO $VENV_PIP install -r "$req_file" -i "$PIP_INDEX_URL" --quiet 2>&1 | tail -5
+                $VENV_PIP install -r "$req_file" -i "$PIP_INDEX_URL" --quiet 2>&1 | tail -5
             else
-                $SUDO $VENV_PIP install -r "$req_file" --quiet 2>&1 | tail -5
+                $VENV_PIP install -r "$req_file" --quiet 2>&1 | tail -5
             fi
         else
             log_skip "所有 Python 依赖"
@@ -568,9 +582,9 @@ setup_python_env() {
         else
             log_error "$pkg 导入失败，尝试重新安装..."
             if [[ -n "$PIP_INDEX_URL" ]]; then
-                $SUDO $VENV_PIP install "$pkg" -i "$PIP_INDEX_URL" --quiet 2>&1 | tail -2
+                $VENV_PIP install "$pkg" -i "$PIP_INDEX_URL" --quiet 2>&1 | tail -2
             else
-                $SUDO $VENV_PIP install "$pkg" --quiet 2>&1 | tail -2
+                $VENV_PIP install "$pkg" --quiet 2>&1 | tail -2
             fi
             if $VENV_PYTHON -c "import ${pkg}" >/dev/null 2>&1; then
                 log_info "$pkg 安装成功"
