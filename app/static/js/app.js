@@ -1293,4 +1293,8 @@ function escapeHtml(str) {
 // 初始化
 document.addEventListener('DOMContentLoaded', () => {
     showPage('dashboard');
+    // 加载版本号到侧边栏
+    api('/api/health').then(data => {
+        document.getElementById('sidebar-version').textContent = 'v' + (data.version || '--');
+    }).catch(() => {});
 });
