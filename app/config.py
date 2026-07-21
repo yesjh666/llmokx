@@ -86,7 +86,7 @@ DEFAULT_CONFIG = {
         "check_on_startup": True,
         "auto_install": False,
         "check_interval_hours": 24,
-        "github_repo": "",
+        "github_repo": "yesjh666/llmokx",
         "method": "release",
         "asset_pattern": "llmokx-*.tar.gz",
         "preserve_dirs": ["config", "data", "logs", "venv"],
