@@ -42,6 +42,7 @@ function showPage(pageId) {
         prompts: loadPrompts,
         forward: loadForwardConfig,
         notification: loadNotificationConfig,
+        monitor: loadMonitorPage,
         logs: loadLogFiles,
         update: loadUpdateVersion,
         settings: loadSettings,
@@ -618,6 +619,184 @@ async function reloadAllConfig() {
         loadSettings();
     } catch (e) {
         toast('重载失败: ' + e.message, 'error');
+    }
+}
+
+// ==================== 监听管理 ====================
+async function loadMonitorPage() {
+    await Promise.all([loadMonitorConfig(), loadMonitorStatus()]);
+}
+
+async function loadMonitorConfig() {
+    try {
+        const cfg = await api('/api/monitor/config');
+        document.getElementById('monitor-enabled').checked = cfg.enabled !== false;
+        document.getElementById('monitor-min-length').value = cfg.min_message_length || 5;
+        document.getElementById('monitor-keywords').value = (cfg.keywords || []).join(', ');
+        document.getElementById('monitor-notify-on-signal').checked = cfg.notify_on_signal !== false;
+        renderMonitorChats(cfg.chat_ids || [], cfg.chat_names || {});
+    } catch (e) {
+        toast('加载监听配置失败: ' + e.message, 'error');
+    }
+}
+
+function renderMonitorChats(chatIds, chatNames) {
+    const container = document.getElementById('monitor-chats-list');
+    if (!chatIds || chatIds.length === 0) {
+        container.innerHTML = '<div class="empty-state"><div class="empty-icon">📡</div><div>暂无监听群，请添加</div></div>';
+        return;
+    }
+    container.innerHTML = chatIds.map(id => {
+        const name = chatNames[id] || '未命名';
+        return `
+            <div class="list-item">
+                <div class="list-item-content">
+                    <strong>${escapeHtml(name)}</strong>
+                    <div style="font-size:12px;color:#909399;">Chat ID: ${escapeHtml(id)}</div>
+                </div>
+                <div class="list-item-actions">
+                    <button class="btn btn-sm btn-danger" onclick="removeMonitorChat('${escapeHtml(id)}')">移除</button>
+                </div>
+            </div>`;
+    }).join('');
+}
+
+async function saveMonitorConfig() {
+    const kwStr = document.getElementById('monitor-keywords').value.trim();
+    const data = {
+        enabled: document.getElementById('monitor-enabled').checked,
+        min_message_length: parseInt(document.getElementById('monitor-min-length').value),
+        keywords: kwStr ? kwStr.split(',').map(s => s.trim()).filter(Boolean) : [],
+        notify_on_signal: document.getElementById('monitor-notify-on-signal').checked,
+    };
+    try {
+        await api('/api/monitor/config', { method: 'PUT', body: JSON.stringify(data) });
+        toast('监听配置已保存', 'success');
+    } catch (e) {
+        toast('保存失败: ' + e.message, 'error');
+    }
+}
+
+async function addMonitorChat() {
+    const chatId = document.getElementById('new-monitor-chat-id').value.trim();
+    const name = document.getElementById('new-monitor-chat-name').value.trim();
+    if (!chatId) { toast('请填写群 Chat ID', 'error'); return; }
+    try {
+        await api('/api/monitor/chats/add', { method: 'POST', body: JSON.stringify({ chat_id: chatId, name }) });
+        toast('监听群已添加', 'success');
+        document.getElementById('new-monitor-chat-id').value = '';
+        document.getElementById('new-monitor-chat-name').value = '';
+        loadMonitorConfig();
+    } catch (e) {
+        toast('添加失败: ' + e.message, 'error');
+    }
+}
+
+async function removeMonitorChat(chatId) {
+    if (!confirm(`确定移除监听群 ${chatId}?`)) return;
+    try {
+        await api('/api/monitor/chats/remove', { method: 'POST', body: JSON.stringify({ chat_id: chatId }) });
+        toast('已移除', 'success');
+        loadMonitorConfig();
+    } catch (e) {
+        toast('移除失败: ' + e.message, 'error');
+    }
+}
+
+async function loadMonitorStatus() {
+    try {
+        const data = await api('/api/monitor/status');
+        const container = document.getElementById('monitor-status-display');
+        const statsContainer = document.getElementById('monitor-stats-display');
+
+        const statusBadge = data.running
+            ? '<span class="badge badge-success">运行中</span>'
+            : '<span class="badge badge-info">已停止</span>';
+        const connectedBadge = data.connected
+            ? '<span class="badge badge-success">已连接</span>'
+            : '<span class="badge badge-warning">未连接</span>';
+
+        container.innerHTML = `
+            <div class="stats-grid" style="margin-bottom:0;">
+                <div class="stat-card">
+                    <div class="stat-label">监听状态</div>
+                    <div class="stat-value">${statusBadge}</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">Telegram连接</div>
+                    <div class="stat-value">${connectedBadge}</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">监听群数</div>
+                    <div class="stat-value">${(data.chat_ids || []).length}</div>
+                </div>
+            </div>`;
+
+        // 统计数据
+        const s = data.stats || {};
+        statsContainer.innerHTML = `
+            <div class="stats-grid" style="margin-bottom:0;">
+                <div class="stat-card">
+                    <div class="stat-label">收到消息</div>
+                    <div class="stat-value">${s.total_received || 0}</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">已分析</div>
+                    <div class="stat-value">${s.total_analyzed || 0}</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">已转发</div>
+                    <div class="stat-value">${s.total_forwarded || 0}</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">已通知</div>
+                    <div class="stat-value">${s.total_notified || 0}</div>
+                </div>
+            </div>
+            ${s.last_message_time ? `<div style="margin-top:12px;font-size:13px;color:#909399;">
+                最近消息: ${escapeHtml(s.last_message_time)} | ${escapeHtml(s.last_message_text || '')}
+                ${s.last_intent ? ' | 意图: ' + escapeHtml(s.last_intent) : ''}
+            </div>` : ''}`;
+
+        // 按钮状态
+        document.getElementById('btn-monitor-start').disabled = data.running;
+        document.getElementById('btn-monitor-stop').disabled = !data.running;
+    } catch (e) {
+        toast('加载监听状态失败: ' + e.message, 'error');
+    }
+}
+
+async function startMonitor() {
+    try {
+        toast('正在启动监听...', 'info');
+        const result = await api('/api/monitor/start', { method: 'POST' });
+        toast(result.message, result.success ? 'success' : 'error');
+        setTimeout(loadMonitorStatus, 2000);
+    } catch (e) {
+        toast('启动失败: ' + e.message, 'error');
+    }
+}
+
+async function stopMonitor() {
+    try {
+        const result = await api('/api/monitor/stop', { method: 'POST' });
+        toast(result.message, result.success ? 'success' : 'error');
+        loadMonitorStatus();
+    } catch (e) {
+        toast('停止失败: ' + e.message, 'error');
+    }
+}
+
+async function testMonitorPipeline() {
+    const text = document.getElementById('monitor-test-text').value.trim();
+    if (!text) { toast('请输入测试消息', 'warning'); return; }
+    const container = document.getElementById('monitor-test-result');
+    container.innerHTML = '<div style="color:#909399;">处理中...</div>';
+    try {
+        const result = await api('/api/monitor/test?text=' + encodeURIComponent(text), { method: 'POST' });
+        container.innerHTML = formatJSON(result);
+    } catch (e) {
+        container.innerHTML = `<div style="color:#f56c6c;">错误: ${e.message}</div>`;
     }
 }
 

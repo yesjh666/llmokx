@@ -35,6 +35,10 @@
                 <span class="menu-icon">🔔</span>
                 <span>通知管理</span>
             </div>
+            <div class="menu-item" data-page="monitor" onclick="showPage('monitor')">
+                <span class="menu-icon">📡</span>
+                <span>监听管理</span>
+            </div>
             <div class="menu-item" data-page="logs" onclick="showPage('logs')">
                 <span class="menu-icon">📋</span>
                 <span>日志查看</span>
@@ -430,6 +434,98 @@
                 <div style="display:flex;gap:10px;">
                     <button class="btn btn-success" onclick="testNotification('all')">同时测试微信 + Telegram</button>
                 </div>
+            </div>
+        </div>
+
+        <!-- 监听管理 -->
+        <div class="page" id="page-monitor">
+            <div class="page-header">
+                <h2>📡 监听管理</h2>
+                <p>Telegram 群消息监听 → LLM 分析 → 自动转发</p>
+            </div>
+
+            <!-- 监听状态 -->
+            <div class="card">
+                <div class="card-header">
+                    <span class="card-title">监听状态</span>
+                    <div>
+                        <button class="btn btn-sm btn-default" onclick="loadMonitorStatus()">刷新</button>
+                    </div>
+                </div>
+                <div id="monitor-status-display"></div>
+                <div style="display:flex;gap:10px;margin-top:12px;">
+                    <button class="btn btn-success" onclick="startMonitor()" id="btn-monitor-start">启动监听</button>
+                    <button class="btn btn-danger" onclick="stopMonitor()" id="btn-monitor-stop">停止监听</button>
+                </div>
+            </div>
+
+            <!-- 监听配置 -->
+            <div class="card">
+                <div class="card-header">
+                    <span class="card-title">监听配置</span>
+                </div>
+                <div class="form-group">
+                    <label>
+                        <input type="checkbox" id="monitor-enabled"> 启用 Telegram 监听
+                    </label>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">最短消息长度（过滤短消息）</label>
+                    <input type="number" class="form-input" id="monitor-min-length" value="5">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">关键词过滤（逗号分隔，留空=全部分析）</label>
+                    <input type="text" class="form-input" id="monitor-keywords" placeholder="例如: 做多,做空,btc,eth">
+                </div>
+                <div class="form-group">
+                    <label>
+                        <input type="checkbox" id="monitor-notify-on-signal" checked> 检测到交易信号时发送通知
+                    </label>
+                </div>
+                <button class="btn btn-primary" onclick="saveMonitorConfig()">保存配置</button>
+            </div>
+
+            <!-- 监听群管理 -->
+            <div class="card">
+                <div class="card-header">
+                    <span class="card-title">监听群列表</span>
+                </div>
+                <div id="monitor-chats-list" style="margin-bottom:16px;"></div>
+                <hr style="border:none;border-top:1px solid #ebeef5;margin:12px 0;">
+                <h4 style="margin-bottom:10px;color:#606266;">添加监听群</h4>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label class="form-label">群 Chat ID</label>
+                        <input type="text" class="form-input" id="new-monitor-chat-id" placeholder="-100xxxxxxxxxx">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">备注名称</label>
+                        <input type="text" class="form-input" id="new-monitor-chat-name" placeholder="信号群A">
+                    </div>
+                </div>
+                <button class="btn btn-primary" onclick="addMonitorChat()">添加</button>
+            </div>
+
+            <!-- 管道测试 -->
+            <div class="card">
+                <div class="card-header">
+                    <span class="card-title">管道测试（模拟监听消息）</span>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">模拟消息文本</label>
+                    <textarea class="form-textarea" id="monitor-test-text" rows="2" placeholder="BTC 做多 60000 止盈65000 止损58000"></textarea>
+                </div>
+                <button class="btn btn-success" onclick="testMonitorPipeline()">发送测试</button>
+                <div id="monitor-test-result" style="margin-top:12px;"></div>
+            </div>
+
+            <!-- 处理统计 -->
+            <div class="card">
+                <div class="card-header">
+                    <span class="card-title">处理统计</span>
+                    <button class="btn btn-sm btn-default" onclick="loadMonitorStatus()">刷新</button>
+                </div>
+                <div id="monitor-stats-display"></div>
             </div>
         </div>
 

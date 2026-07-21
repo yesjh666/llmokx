@@ -12,9 +12,8 @@ httpx==0.25.2
 # 数据校验和序列化
 pydantic==2.5.2
 
-# 可选：Telegram Userbot（以用户身份发送消息）
-# 如需启用Userbot功能，取消下面注释
-# telethon==1.34.0
+# 可选：Telegram Userbot（以用户身份发送消息和监听群消息）
+telethon==1.34.0
 
 # 可选：SSO/模板/表单（当前未使用，保留以备扩展）
 # jinja2==3.1.2

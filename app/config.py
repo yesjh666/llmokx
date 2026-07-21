@@ -64,6 +64,16 @@ DEFAULT_CONFIG = {
             "disable_notification": False
         }
     },
+    "monitor": {
+        "enabled": False,
+        "chat_ids": [],
+        "chat_names": {},
+        "min_message_length": 5,
+        "keywords": [],
+        "default_context": "无持仓无挂单",
+        "notify_on_signal": True,
+        "userbot_config_file": "config/telegram_userbot.json"
+    },
     "server": {
         "host": "0.0.0.0",
         "port": 8080,

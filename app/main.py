@@ -12,7 +12,7 @@ from fastapi.responses import HTMLResponse, FileResponse
 from fastapi.middleware.cors import CORSMiddleware
 
 from app import config
-from app.api import llm, forward, notification, settings, logs, update
+from app.api import llm, forward, notification, settings, logs, update, monitor
 from app.core.logging_config import setup_logging, get_logger
 from app.services import updater
 
@@ -53,6 +53,7 @@ app.include_router(notification.router, prefix="/api/notification", tags=["通�
 app.include_router(settings.router, prefix="/api/settings", tags=["系统设置"])
 app.include_router(logs.router, prefix="/api/logs", tags=["日志查看"])
 app.include_router(update.router, prefix="/api/update", tags=["升级管理"])
+app.include_router(monitor.router, prefix="/api/monitor", tags=["监听管理"])
 
 
 @app.on_event("startup")
@@ -68,6 +69,17 @@ async def startup_event():
     # 启动时自动检查更新（按配置）
     import asyncio
     asyncio.create_task(updater.startup_check())
+
+    # 启动 Telegram 监听（如果已启用）
+    from app.services.telegram_monitor import monitor
+    from app.services.message_pipeline import pipeline
+    monitor_cfg = config.get_section("monitor")
+    if monitor_cfg.get("enabled", False) and monitor_cfg.get("chat_ids"):
+        monitor.set_message_handler(pipeline.process_message)
+        asyncio.create_task(monitor.start())
+        logger.info("Telegram 监听已启动")
+    else:
+        logger.info("Telegram 监听未启用（可在 Web 界面开启）")
 
 
 @app.on_event("shutdown")
