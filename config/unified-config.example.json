@@ -13,13 +13,7 @@
   },
   "forward": {
     "enabled": true,
-    "targets": [
-      {
-        "channel": "openclaw-telegram",
-        "target": "-1004208828815",
-        "description": "默认转发群"
-      }
-    ],
+    "targets": [],
     "skip_intents": ["chat", "query"],
     "telegram_bot_token": "",
     "userbot_enabled": true,
@@ -31,15 +25,15 @@
     "retry_interval": 5,
     "parallel": true,
     "wechat": {
-      "enabled": true,
-      "target": "o9cq80zZk50Q33Snd8zOZ5vlAEQ4@im.wechat",
-      "account": "ea3465f35dfb-im-bot",
+      "enabled": false,
+      "target": "",
+      "account": "",
       "channel": "openclaw-weixin",
       "use_openclaw": true,
       "webhook_url": ""
     },
     "telegram": {
-      "enabled": true,
+      "enabled": false,
       "bot_token": "",
       "chat_id": "",
       "parse_mode": "HTML",
@@ -69,7 +63,7 @@
     "auto_install": false,
     "check_interval_hours": 24,
     "github_repo": "yesjh666/llmokx",
-    "method": "release",
+    "method": "git",
     "asset_pattern": "llmokx-*.tar.gz",
     "preserve_dirs": ["config", "data", "logs", "venv"],
     "restart_command": "systemctl restart llmokx",

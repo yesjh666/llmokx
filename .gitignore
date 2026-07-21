@@ -28,9 +28,14 @@ logs/*
 data/*
 !data/.gitkeep
 
-# 敏感配置（按需取消注释）
-# config/unified-config.json
-# config/prompts.json
+# 敏感配置（运行时会修改，不纳入版本管理）
+config/unified-config.json
+config/telegram_userbot.json
+config/prompts.json
+config/userbot_session.session
+config/userbot_session.session-journal
+config/*.session
+config/*.session-journal
 
 # OS
 .DS_Store
