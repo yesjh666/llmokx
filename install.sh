@@ -488,6 +488,7 @@ deploy_files() {
 
     $SUDO cp "$SCRIPT_DIR/run.py" "$INSTALL_DIR/"
     $SUDO cp "$SCRIPT_DIR/requirements.txt" "$INSTALL_DIR/"
+    $SUDO cp "$SCRIPT_DIR/version.txt" "$INSTALL_DIR/" 2>/dev/null || true
 
     # 创建数据/日志目录
     $SUDO mkdir -p "$INSTALL_DIR/data" "$INSTALL_DIR/logs"
