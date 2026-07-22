@@ -276,8 +276,8 @@ class LLMAnalyzer:
 
         return intents_list, None
 
-    def test_connection(self) -> Dict[str, Any]:
-        """测试LLM连接（同步版本，用于API检查）"""
+    async def test_connection(self) -> Dict[str, Any]:
+        """真正测试 LLM 连接（发送一条简短消息验证 API 可用性）"""
         self._refresh_config()
         api_key = self.config.get("api_key", "")
         api_base = self.config.get("api_base", "")
@@ -290,15 +290,55 @@ class LLMAnalyzer:
         if not model:
             return {"success": False, "error": "模型未配置"}
 
-        return {
-            "success": True,
-            "info": {
-                "provider": self.config.get("provider", "openai"),
-                "api_base": api_base,
-                "model": model,
-                "fallback_model": self.config.get("fallback_model", ""),
-            },
+        # 发送真实测试请求
+        url = f"{api_base.rstrip('/')}/chat/completions"
+        headers = {
+            "Authorization": f"Bearer {api_key}",
+            "Content-Type": "application/json",
         }
+        body = {
+            "model": model,
+            "messages": [{"role": "user", "content": "回复OK"}],
+            "max_tokens": 10,
+        }
+        thinking = self.config.get("thinking", False)
+        if thinking is False:
+            body["thinking"] = {"type": "disabled"}
+
+        try:
+            async with httpx.AsyncClient(timeout=30) as client:
+                resp = await client.post(url, headers=headers, json=body)
+
+            if resp.status_code == 200:
+                data = resp.json()
+                choices = data.get("choices", [])
+                content = ""
+                if choices:
+                    msg = choices[0].get("message", {})
+                    content = msg.get("content", "") or msg.get("reasoning_content", "")[:20]
+
+                return {
+                    "success": True,
+                    "info": {
+                        "model": model,
+                        "api_base": api_base,
+                        "response": content[:50] if content else "(空回复)",
+                    },
+                }
+            else:
+                detail = ""
+                try:
+                    err_data = resp.json()
+                    detail = err_data.get("error", {}).get("message", "") or str(err_data)[:200]
+                except Exception:
+                    detail = resp.text[:200]
+
+                return {
+                    "success": False,
+                    "error": f"HTTP {resp.status_code}: {detail}",
+                }
+        except Exception as e:
+            return {"success": False, "error": f"请求异常: {e}"}
 
 
 # 全局单例

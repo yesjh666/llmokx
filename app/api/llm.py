@@ -74,7 +74,7 @@ async def update_config(req: UpdateConfigRequest):
 @router.post("/test-connection")
 async def test_connection():
     """测试LLM连接配置"""
-    result = llm_analyzer.analyzer.test_connection()
+    result = await llm_analyzer.analyzer.test_connection()
     return result
 
 
