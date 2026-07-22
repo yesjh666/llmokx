@@ -167,7 +167,7 @@ async function analyzeTest() {
     const context = document.getElementById('analyze-context').value.trim() || '无持仓无挂单';
 
     const resultEl = document.getElementById('analyze-result');
-    resultEl.innerHTML = '<div style="color:#909399;">分析中...</div>';
+    resultEl.innerHTML = '<div style="color:#6b7280;">分析中...</div>';
 
     try {
         const result = await api('/api/llm/analyze', {
@@ -176,7 +176,7 @@ async function analyzeTest() {
         });
         resultEl.innerHTML = formatJSON(result);
     } catch (e) {
-        resultEl.innerHTML = `<div style="color:#f56c6c;">错误: ${e.message}</div>`;
+        resultEl.innerHTML = `<div style="color:#f87171;">错误: ${e.message}</div>`;
     }
 }
 
@@ -225,8 +225,8 @@ function renderRules(containerId, rules, isCustom) {
                 <div class="list-item">
                     <div class="list-item-content">
                         <div style="margin-bottom:4px;">${escapeHtml(r.rule || '')}</div>
-                        ${r.description ? `<div style="font-size:12px;color:#909399;">${escapeHtml(r.description)}</div>` : ''}
-                        <div style="font-size:12px;color:#909399;">优先级: ${r.priority || 0}
+                        ${r.description ? `<div style="font-size:12px;color:#6b7280;">${escapeHtml(r.description)}</div>` : ''}
+                        <div style="font-size:12px;color:#6b7280;">优先级: ${r.priority || 0}
                             <span class="badge ${enabled ? 'badge-success' : 'badge-info'}" style="margin-left:8px;">${enabled ? '启用' : '禁用'}</span>
                         </div>
                     </div>
@@ -256,12 +256,12 @@ function renderExamples(containerId, examples, isCustom) {
                     <strong>示例${i + 1} ${desc}</strong>
                     ${deleteBtn}
                 </div>
-                <div style="background:#f5f7fa;padding:8px;border-radius:4px;margin-bottom:6px;">
-                    <div style="font-size:12px;color:#909399;margin-bottom:4px;">输入:</div>
+                <div style="background:#12141c;border:1px solid #262830;padding:8px;border-radius:4px;margin-bottom:6px;">
+                    <div style="font-size:12px;color:#6b7280;margin-bottom:4px;">输入:</div>
                     <div>${escapeHtml(ex.input || '')}</div>
                 </div>
-                <div style="background:#f5f7fa;padding:8px;border-radius:4px;">
-                    <div style="font-size:12px;color:#909399;margin-bottom:4px;">输出:</div>
+                <div style="background:#12141c;border:1px solid #262830;padding:8px;border-radius:4px;">
+                    <div style="font-size:12px;color:#6b7280;margin-bottom:4px;">输出:</div>
                     <pre style="white-space:pre-wrap;font-size:12px;">${escapeHtml(ex.output || '')}</pre>
                 </div>
             </div>`;
@@ -464,7 +464,7 @@ async function loadPipelineStatus() {
                     <div class="stat-value">${s.total_notified || 0}</div>
                 </div>
             </div>
-            ${s.last_message_time ? `<div style="margin-top:12px;font-size:13px;color:#909399;">
+            ${s.last_message_time ? `<div style="margin-top:12px;font-size:13px;color:#6b7280;">
                 最近消息: ${escapeHtml(s.last_message_time)} | ${escapeHtml(s.last_message_text || '')}
                 ${s.last_intent ? ' | 意图: ' + escapeHtml(s.last_intent) : ''}
             </div>` : ''}`;
@@ -517,7 +517,7 @@ async function loadForwardTargets() {
             <div class="list-item">
                 <div class="list-item-content">
                     <div><strong>${escapeHtml(t.description || '未命名')}</strong></div>
-                    <div style="font-size:12px;color:#909399;">通道: ${escapeHtml(t.channel)} | 目标: ${escapeHtml(t.target)}</div>
+                    <div style="font-size:12px;color:#6b7280;">通道: ${escapeHtml(t.channel)} | 目标: ${escapeHtml(t.target)}</div>
                 </div>
                 <div class="list-item-actions">
                     <button class="btn btn-sm btn-primary" onclick="testForwardTarget(${i})">测试</button>
@@ -757,7 +757,7 @@ function renderMonitorChats(chatIds, chatNames) {
             <div class="list-item">
                 <div class="list-item-content">
                     <strong>${escapeHtml(name)}</strong>
-                    <div style="font-size:12px;color:#909399;">Chat ID: ${escapeHtml(id)}</div>
+                    <div style="font-size:12px;color:#6b7280;">Chat ID: ${escapeHtml(id)}</div>
                 </div>
                 <div class="list-item-actions">
                     <button class="btn btn-sm btn-danger" onclick="removeMonitorChat('${escapeHtml(id)}')">移除</button>
@@ -869,7 +869,7 @@ async function loadPipelineStatus() {
                     <div class="stat-value">${s.total_notified || 0}</div>
                 </div>
             </div>
-            ${s.last_message_time ? `<div style="margin-top:12px;font-size:13px;color:#909399;">
+            ${s.last_message_time ? `<div style="margin-top:12px;font-size:13px;color:#6b7280;">
                 最近消息: ${escapeHtml(s.last_message_time)} | ${escapeHtml(s.last_message_text || '')}
                 ${s.last_intent ? ' | 意图: ' + escapeHtml(s.last_intent) : ''}
             </div>` : ''}`;
@@ -906,12 +906,12 @@ async function testMonitorPipeline() {
     const text = document.getElementById('monitor-test-text').value.trim();
     if (!text) { toast('请输入测试消息', 'warning'); return; }
     const container = document.getElementById('monitor-test-result');
-    container.innerHTML = '<div style="color:#909399;">处理中...</div>';
+    container.innerHTML = '<div style="color:#6b7280;">处理中...</div>';
     try {
         const result = await api('/api/monitor/test?text=' + encodeURIComponent(text), { method: 'POST' });
         container.innerHTML = formatJSON(result);
     } catch (e) {
-        container.innerHTML = `<div style="color:#f56c6c;">错误: ${e.message}</div>`;
+        container.innerHTML = `<div style="color:#f87171;">错误: ${e.message}</div>`;
     }
 }
 
@@ -933,11 +933,11 @@ async function loadUserbotConfig() {
             const container = document.getElementById('ub-test-result');
             if (state.state === 'authorized') {
                 const u = state.user || {};
-                container.innerHTML = `<div style="color:#67c23a;padding:8px;">✓ 已登录: ${escapeHtml(u.first_name)} (ID: ${u.id})</div>`;
+                container.innerHTML = `<div style="color:#4ade80;padding:8px;">✓ 已登录: ${escapeHtml(u.first_name)} (ID: ${u.id})</div>`;
             } else if (state.session_exists && state.state === 'idle') {
-                container.innerHTML = `<div style="color:#909399;padding:8px;">Session 文件存在，点击「保存并登录」恢复连接</div>`;
+                container.innerHTML = `<div style="color:#6b7280;padding:8px;">Session 文件存在，点击「保存并登录」恢复连接</div>`;
             } else if (state.state === 'connected') {
-                container.innerHTML = `<div style="color:#e6a23c;padding:8px;">⚠ 已连接但未授权，点击「保存并登录」</div>`;
+                container.innerHTML = `<div style="color:#fbbf24;padding:8px;">⚠ 已连接但未授权，点击「保存并登录」</div>`;
             }
         } catch (e) {}
 
@@ -976,7 +976,7 @@ async function saveAndConnectUserbot() {
     document.getElementById('ub-password-section').style.display = 'none';
 
     // Step 1: 保存配置
-    container.innerHTML = '<div style="color:#909399;padding:8px;">正在保存配置...</div>';
+    container.innerHTML = '<div style="color:#6b7280;padding:8px;">正在保存配置...</div>';
 
     const data = {
         enabled: document.getElementById('ub-enabled').checked,
@@ -990,44 +990,44 @@ async function saveAndConnectUserbot() {
     try {
         const saveResult = await api('/api/monitor/userbot', { method: 'PUT', body: JSON.stringify(data) });
         if (!saveResult.success) {
-            container.innerHTML = `<div style="color:#f56c6c;padding:8px;">✗ 配置保存失败: ${escapeHtml(saveResult.message)}</div>`;
+            container.innerHTML = `<div style="color:#f87171;padding:8px;">✗ 配置保存失败: ${escapeHtml(saveResult.message)}</div>`;
             return;
         }
     } catch (e) {
-        container.innerHTML = `<div style="color:#f56c6c;padding:8px;">✗ 保存失败: ${e.message}</div>`;
+        container.innerHTML = `<div style="color:#f87171;padding:8px;">✗ 保存失败: ${e.message}</div>`;
         return;
     }
 
     // Step 2: 连接 Telegram 并启动登录
-    container.innerHTML = '<div style="color:#909399;padding:8px;">正在连接 Telegram...</div>';
+    container.innerHTML = '<div style="color:#6b7280;padding:8px;">正在连接 Telegram...</div>';
     try {
         const result = await api('/api/monitor/userbot/test', { method: 'POST' });
         handleLoginResult(container, result);
     } catch (e) {
-        container.innerHTML = `<div style="color:#f56c6c;padding:8px;">✗ 连接失败: ${e.message}</div>`;
+        container.innerHTML = `<div style="color:#f87171;padding:8px;">✗ 连接失败: ${e.message}</div>`;
     }
 }
 
 function handleLoginResult(container, result) {
     if (result.state === 'authorized') {
-        container.innerHTML = `<div style="color:#67c23a;padding:8px;">✓ ${escapeHtml(result.message)}</div>`;
+        container.innerHTML = `<div style="color:#4ade80;padding:8px;">✓ ${escapeHtml(result.message)}</div>`;
         document.getElementById('ub-code-section').style.display = 'none';
         document.getElementById('ub-password-section').style.display = 'none';
         toast('Telegram 登录成功', 'success');
     } else if (result.need_code || result.state === 'waiting_code') {
-        container.innerHTML = `<div style="color:#e6a23c;padding:8px;">⚠ ${escapeHtml(result.message)}</div>`;
+        container.innerHTML = `<div style="color:#fbbf24;padding:8px;">⚠ ${escapeHtml(result.message)}</div>`;
         document.getElementById('ub-code-section').style.display = 'block';
         document.getElementById('ub-password-section').style.display = 'none';
         document.getElementById('ub-code').value = '';
         document.getElementById('ub-code').focus();
     } else if (result.need_password || result.state === 'waiting_password') {
-        container.innerHTML = `<div style="color:#e6a23c;padding:8px;">⚠ ${escapeHtml(result.message)}</div>`;
+        container.innerHTML = `<div style="color:#fbbf24;padding:8px;">⚠ ${escapeHtml(result.message)}</div>`;
         document.getElementById('ub-password-section').style.display = 'block';
         document.getElementById('ub-code-section').style.display = 'none';
         document.getElementById('ub-password').value = '';
         document.getElementById('ub-password').focus();
     } else {
-        container.innerHTML = `<div style="color:#f56c6c;padding:8px;">✗ ${escapeHtml(result.message)}</div>`;
+        container.innerHTML = `<div style="color:#f87171;padding:8px;">✗ ${escapeHtml(result.message)}</div>`;
     }
 }
 
@@ -1035,12 +1035,12 @@ async function loginWithCode() {
     const code = document.getElementById('ub-code').value.trim();
     if (!code) { toast('请输入验证码', 'warning'); return; }
     const container = document.getElementById('ub-test-result');
-    container.innerHTML = '<div style="color:#909399;">验证中...</div>';
+    container.innerHTML = '<div style="color:#6b7280;">验证中...</div>';
     try {
         const result = await api(`/api/monitor/userbot/login?code=${encodeURIComponent(code)}`, { method: 'POST' });
         handleLoginResult(container, result);
     } catch (e) {
-        container.innerHTML = `<div style="color:#f56c6c;">✗ ${e.message}</div>`;
+        container.innerHTML = `<div style="color:#f87171;">✗ ${e.message}</div>`;
     }
 }
 
@@ -1048,12 +1048,12 @@ async function loginWithPassword() {
     const password = document.getElementById('ub-password').value.trim();
     if (!password) { toast('请输入两步验证密码', 'warning'); return; }
     const container = document.getElementById('ub-test-result');
-    container.innerHTML = '<div style="color:#909399;">验证密码中...</div>';
+    container.innerHTML = '<div style="color:#6b7280;">验证密码中...</div>';
     try {
         const result = await api(`/api/monitor/userbot/password?password=${encodeURIComponent(password)}`, { method: 'POST' });
         handleLoginResult(container, result);
     } catch (e) {
-        container.innerHTML = `<div style="color:#f56c6c;">✗ ${e.message}</div>`;
+        container.innerHTML = `<div style="color:#f87171;">✗ ${e.message}</div>`;
     }
 }
 
@@ -1074,8 +1074,8 @@ async function loadLogFiles() {
             const info = data[key];
             if (!info) continue;
             html += '<tr>';
-            html += `<td><strong>${info.description || key}</strong><br><span style="font-size:11px;color:#909399;">${key}</span></td>`;
-            html += `<td style="font-size:12px;">${info.file || '-'}<br>${info.exists ? '✓ 存在' : '<span style="color:#f56c6c;">不存在</span>'}</td>`;
+            html += `<td><strong>${info.description || key}</strong><br><span style="font-size:11px;color:#6b7280;">${key}</span></td>`;
+            html += `<td style="font-size:12px;">${info.file || '-'}<br>${info.exists ? '✓ 存在' : '<span style="color:#f87171;">不存在</span>'}</td>`;
             html += `<td>${info.size_human || '-'}</td>`;
             html += `<td>${info.lines || 0}</td>`;
             html += `<td>${info.errors ? `<span class="badge badge-danger">${info.errors}</span>` : '<span class="badge badge-success">0</span>'}</td>`;
@@ -1089,9 +1089,9 @@ async function loadLogFiles() {
         // 归档文件
         const archive = data._archive || {};
         if (archive.total_files > 0) {
-            html += `<div style="margin-top:16px;padding-top:12px;border-top:1px solid #ebeef5;">`;
-            html += `<h4 style="margin-bottom:8px;color:#606266;">历史归档 (${archive.total_files}个文件)</h4>`;
-            html += '<div style="max-height:150px;overflow-y:auto;font-size:12px;color:#909399;">';
+            html += `<div style="margin-top:16px;padding-top:12px;border-top:1px solid #262830;">`;
+            html += `<h4 style="margin-bottom:8px;color:#9ca3af;">历史归档 (${archive.total_files}个文件)</h4>`;
+            html += '<div style="max-height:150px;overflow-y:auto;font-size:12px;color:#6b7280;">';
             (archive.files || []).forEach(f => {
                 const date = new Date(f.date * 1000).toLocaleString('zh-CN');
                 html += `<div>${f.name} (${f.size_human}) - ${date}</div>`;
@@ -1101,7 +1101,7 @@ async function loadLogFiles() {
 
         container.innerHTML = html;
     } catch (e) {
-        document.getElementById('log-files-list').innerHTML = `<div style="color:#f56c6c;">加载失败: ${e.message}</div>`;
+        document.getElementById('log-files-list').innerHTML = `<div style="color:#f87171;">加载失败: ${e.message}</div>`;
     }
 }
 
@@ -1117,7 +1117,7 @@ async function loadLogTail() {
         const data = await api(`/api/logs/${module}/tail?${params}`);
 
         if (data.error) {
-            container.innerHTML = `<div style="color:#f56c6c;">${data.error}</div>`;
+            container.innerHTML = `<div style="color:#f87171;">${data.error}</div>`;
             return;
         }
 
@@ -1139,11 +1139,11 @@ async function loadLogTail() {
         document.getElementById('log-tail-display-info')?.remove();
         const info = document.createElement('div');
         info.id = 'log-tail-display-info';
-        info.style = 'text-align:right;font-size:12px;color:#909399;margin-top:8px;';
+        info.style = 'text-align:right;font-size:12px;color:#6b7280;margin-top:8px;';
         info.textContent = `模块: ${data.description || module} | 返回 ${data.returned}/${data.total} 行`;
         container.appendChild(info);
     } catch (e) {
-        container.innerHTML = `<div style="color:#f56c6c;">加载失败: ${e.message}</div>`;
+        container.innerHTML = `<div style="color:#f87171;">加载失败: ${e.message}</div>`;
     }
 
     // 自动刷新
@@ -1163,7 +1163,7 @@ async function loadLogRecords() {
         const data = await api(`/api/logs/${module}/records?limit=${limit}`);
 
         if (data.error) {
-            container.innerHTML = `<div style="color:#f56c6c;">${data.error}</div>`;
+            container.innerHTML = `<div style="color:#f87171;">${data.error}</div>`;
             return;
         }
 
@@ -1173,7 +1173,7 @@ async function loadLogRecords() {
             return;
         }
 
-        let html = `<div style="text-align:right;font-size:12px;color:#909399;margin-bottom:12px;">返回 ${data.returned}/${data.total} 条记录</div>`;
+        let html = `<div style="text-align:right;font-size:12px;color:#6b7280;margin-bottom:12px;">返回 ${data.returned}/${data.total} 条记录</div>`;
         records.forEach((r, i) => {
             const ts = r.timestamp || '';
             const success = r.success;
@@ -1181,28 +1181,28 @@ async function loadLogRecords() {
             const statusText = success ? '成功' : '失败';
             const intent = r.intent || r.action || r.type || '';
             const elapsed = r.elapsed != null ? `${r.elapsed}s` : '';
-            const errorMsg = r.error ? `<div style="color:#f56c6c;font-size:12px;margin-top:4px;">错误: ${escapeHtml(r.error)}</div>` : '';
+            const errorMsg = r.error ? `<div style="color:#f87171;font-size:12px;margin-top:4px;">错误: ${escapeHtml(r.error)}</div>` : '';
 
-            const inputPreview = r.input ? `<div style="font-size:12px;color:#909399;margin-top:4px;">输入: ${escapeHtml(String(r.input).substring(0, 120))}</div>` : '';
-            const msgPreview = r.message ? `<div style="font-size:12px;color:#909399;margin-top:4px;">内容: ${escapeHtml(String(r.message).substring(0, 120))}</div>` : '';
+            const inputPreview = r.input ? `<div style="font-size:12px;color:#6b7280;margin-top:4px;">输入: ${escapeHtml(String(r.input).substring(0, 120))}</div>` : '';
+            const msgPreview = r.message ? `<div style="font-size:12px;color:#6b7280;margin-top:4px;">内容: ${escapeHtml(String(r.message).substring(0, 120))}</div>` : '';
 
             html += `
-                <div style="background:#f5f7fa;padding:12px;border-radius:6px;margin-bottom:8px;border-left:3px solid ${success ? '#67c23a' : '#f56c6c'};">
+                <div style="background:#12141c;border:1px solid #262830;padding:12px;border-radius:6px;margin-bottom:8px;border-left:3px solid ${success ? '#67c23a' : '#f56c6c'};">
                     <div style="display:flex;justify-content:space-between;align-items:center;">
                         <div>
                             <span class="badge ${badge}">${statusText}</span>
                             <strong style="margin-left:8px;">${escapeHtml(intent)}</strong>
                             ${r.symbol ? `<span style="margin-left:8px;color:#409eff;">${escapeHtml(r.symbol)}</span>` : ''}
-                            ${r.direction ? `<span style="color:#909399;">${escapeHtml(r.direction)}</span>` : ''}
+                            ${r.direction ? `<span style="color:#6b7280;">${escapeHtml(r.direction)}</span>` : ''}
                         </div>
-                        <div style="font-size:12px;color:#909399;">${ts} ${elapsed ? '| ' + elapsed : ''}</div>
+                        <div style="font-size:12px;color:#6b7280;">${ts} ${elapsed ? '| ' + elapsed : ''}</div>
                     </div>
                     ${inputPreview}${msgPreview}${errorMsg}
                 </div>`;
         });
         container.innerHTML = html;
     } catch (e) {
-        container.innerHTML = `<div style="color:#f56c6c;">加载失败: ${e.message}</div>`;
+        container.innerHTML = `<div style="color:#f87171;">加载失败: ${e.message}</div>`;
     }
 }
 
@@ -1213,7 +1213,7 @@ async function loadLogStats() {
     try {
         const data = await api(`/api/logs/${module}/stats`);
         if (data.error) {
-            container.innerHTML = `<div style="color:#f56c6c;">${data.error}</div>`;
+            container.innerHTML = `<div style="color:#f87171;">${data.error}</div>`;
             return;
         }
 
@@ -1228,11 +1228,11 @@ async function loadLogStats() {
             </div>
             <div class="stat-card">
                 <div class="stat-label">成功</div>
-                <div class="stat-value" style="color:#67c23a;">${data.success}</div>
+                <div class="stat-value" style="color:#4ade80;">${data.success}</div>
             </div>
             <div class="stat-card">
                 <div class="stat-label">失败</div>
-                <div class="stat-value" style="color:#f56c6c;">${data.failed}</div>
+                <div class="stat-value" style="color:#f87171;">${data.failed}</div>
             </div>
             <div class="stat-card">
                 <div class="stat-label">成功率</div>
@@ -1259,17 +1259,17 @@ async function loadLogStats() {
         }
 
         if (data.by_type && Object.keys(data.by_type).length > 0) {
-            html += '<div style="margin-top:16px;"><h4 style="margin-bottom:8px;color:#606266;">按类型统计</h4><table class="table"><thead><tr><th>类型</th><th>总数</th><th>成功</th><th>失败</th><th>成功率</th></tr></thead><tbody>';
+            html += '<div style="margin-top:16px;"><h4 style="margin-bottom:8px;color:#9ca3af;">按类型统计</h4><table class="table"><thead><tr><th>类型</th><th>总数</th><th>成功</th><th>失败</th><th>成功率</th></tr></thead><tbody>';
             for (const [type, stats] of Object.entries(data.by_type)) {
                 const tr = stats.total > 0 ? (stats.success / stats.total * 100).toFixed(1) : 0;
-                html += `<tr><td><strong>${escapeHtml(type)}</strong></td><td>${stats.total}</td><td style="color:#67c23a;">${stats.success}</td><td style="color:#f56c6c;">${stats.failed}</td><td>${tr}%</td></tr>`;
+                html += `<tr><td><strong>${escapeHtml(type)}</strong></td><td>${stats.total}</td><td style="color:#4ade80;">${stats.success}</td><td style="color:#f87171;">${stats.failed}</td><td>${tr}%</td></tr>`;
             }
             html += '</tbody></table></div>';
         }
 
         container.innerHTML = html;
     } catch (e) {
-        container.innerHTML = `<div style="color:#f56c6c;">加载失败: ${e.message}</div>`;
+        container.innerHTML = `<div style="color:#f87171;">加载失败: ${e.message}</div>`;
     }
 }
 
@@ -1292,7 +1292,7 @@ async function loadUpdateVersion() {
             </div>
             <div class="stat-card">
                 <div class="stat-label">自动升级</div>
-                <div class="stat-value">${data.update_enabled ? '<span style="color:#67c23a;">已启用</span>' : '<span style="color:#f56c6c;">已禁用</span>'}</div>
+                <div class="stat-value">${data.update_enabled ? '<span style="color:#4ade80;">已启用</span>' : '<span style="color:#f87171;">已禁用</span>'}</div>
             </div>
         </div>`;
         container.innerHTML = html;
@@ -1301,7 +1301,7 @@ async function loadUpdateVersion() {
         await loadUpdateConfig();
         await loadBackups();
     } catch (e) {
-        document.getElementById('update-version-display').innerHTML = `<div style="color:#f56c6c;">加载失败: ${e.message}</div>`;
+        document.getElementById('update-version-display').innerHTML = `<div style="color:#f87171;">加载失败: ${e.message}</div>`;
     }
 }
 
@@ -1340,19 +1340,19 @@ async function saveUpdateConfig() {
 
 async function checkUpdates() {
     const container = document.getElementById('update-check-display');
-    container.innerHTML = '<div style="color:#909399;">检查中...</div>';
+    container.innerHTML = '<div style="color:#6b7280;">检查中...</div>';
 
     try {
         const data = await api('/api/update/check');
 
         if (data.error) {
-            container.innerHTML = `<div style="color:#f56c6c;">❌ ${escapeHtml(data.error)}</div>`;
+            container.innerHTML = `<div style="color:#f87171;">❌ ${escapeHtml(data.error)}</div>`;
             return;
         }
 
         if (!data.has_update) {
-            let html = '<div style="background:#f0f9eb;padding:16px;border-radius:6px;border-left:3px solid #67c23a;">';
-            html += '<strong style="color:#67c23a;">✓ 已是最新版本</strong><br>';
+            let html = '<div style="background:rgba(34,197,94,0.08);border:1px solid rgba(34,197,94,0.2);padding:16px;border-radius:6px;border-left:3px solid #67c23a;">';
+            html += '<strong style="color:#4ade80;">✓ 已是最新版本</strong><br>';
             html += `当前版本: <code>${escapeHtml(data.current_version)}</code>`;
             if (data.latest_version) {
                 html += ` | GitHub最新: <code>${escapeHtml(data.latest_version)}</code>`;
@@ -1366,18 +1366,18 @@ async function checkUpdates() {
         }
 
         // 有新版本
-        let html = '<div style="background:#fdf6ec;padding:16px;border-radius:6px;border-left:3px solid #e6a23c;">';
-        html += '<strong style="color:#e6a23c;">📢 有新版本可用！</strong><br><br>';
-        html += `当前版本: <code>${escapeHtml(data.current_version)}</code> → 最新版本: <code style="color:#67c23a;">${escapeHtml(data.latest_version || data.remote_commit)}</code><br><br>`;
+        let html = '<div style="background:rgba(245,158,11,0.08);border:1px solid rgba(245,158,11,0.2);padding:16px;border-radius:6px;border-left:3px solid #e6a23c;">';
+        html += '<strong style="color:#fbbf24;">📢 有新版本可用！</strong><br><br>';
+        html += `当前版本: <code>${escapeHtml(data.current_version)}</code> → 最新版本: <code style="color:#4ade80;">${escapeHtml(data.latest_version || data.remote_commit)}</code><br><br>`;
 
         if (data.changelog) {
             html += '<strong>更新日志:</strong><br>';
-            html += `<div style="background:#fff;padding:8px;border-radius:4px;max-height:200px;overflow-y:auto;font-size:13px;">${escapeHtml(data.changelog)}</div><br>`;
+            html += `<div style="background:#12141c;padding:8px;border-radius:4px;max-height:200px;overflow-y:auto;font-size:13px;">${escapeHtml(data.changelog)}</div><br>`;
         }
 
         if (data.method === 'git' && data.new_commits && data.new_commits.length > 0) {
             html += '<strong>新提交:</strong><br>';
-            html += '<div style="background:#fff;padding:8px;border-radius:4px;font-size:12px;">';
+            html += '<div style="background:#12141c;padding:8px;border-radius:4px;font-size:12px;">';
             data.new_commits.slice(0, 8).forEach(c => {
                 html += `<div>${escapeHtml(c)}</div>`;
             });
@@ -1394,12 +1394,12 @@ async function checkUpdates() {
             html += `<small><a href="${escapeHtml(data.release_url)}" target="_blank">查看 Release</a></small><br>`;
         }
         if (!data.download_url && data.method === 'release') {
-            html += '<div style="color:#f56c6c;margin-top:8px;">⚠️ 该 Release 没有匹配的资源文件，请先在 GitHub 上传对应压缩包</div>';
+            html += '<div style="color:#f87171;margin-top:8px;">⚠️ 该 Release 没有匹配的资源文件，请先在 GitHub 上传对应压缩包</div>';
         }
         html += '</div>';
         container.innerHTML = html;
     } catch (e) {
-        container.innerHTML = `<div style="color:#f56c6c;">检查失败: ${e.message}</div>`;
+        container.innerHTML = `<div style="color:#f87171;">检查失败: ${e.message}</div>`;
     }
 }
 
@@ -1421,8 +1421,8 @@ async function performUpdate() {
         document.getElementById('update-progress').style.display = 'none';
 
         if (result.success) {
-            let html = '<div style="background:#f0f9eb;padding:16px;border-radius:6px;border-left:3px solid #67c23a;">';
-            html += '<strong style="color:#67c23a;">✅ 升级成功！</strong><br>';
+            let html = '<div style="background:rgba(34,197,94,0.08);border:1px solid rgba(34,197,94,0.2);padding:16px;border-radius:6px;border-left:3px solid #67c23a;">';
+            html += '<strong style="color:#4ade80;">✅ 升级成功！</strong><br>';
             html += escapeHtml(result.message || '') + '<br>';
             if (result.backup_path) {
                 html += `<small>备份位置: ${escapeHtml(result.backup_path)}</small><br>`;
@@ -1436,8 +1436,8 @@ async function performUpdate() {
             toast('升级成功！请重启服务', 'success');
             await loadUpdateVersion();
         } else {
-            let html = '<div style="background:#fef0f0;padding:16px;border-radius:6px;border-left:3px solid #f56c6c;">';
-            html += '<strong style="color:#f56c6c;">❌ 升级失败</strong><br>';
+            let html = '<div style="background:rgba(239,68,68,0.08);border:1px solid rgba(239,68,68,0.2);padding:16px;border-radius:6px;border-left:3px solid #f56c6c;">';
+            html += '<strong style="color:#f87171;">❌ 升级失败</strong><br>';
             html += escapeHtml(result.message || '') + '<br>';
             html += '</div>';
             document.getElementById('update-result').innerHTML = html;
@@ -1445,7 +1445,7 @@ async function performUpdate() {
         }
     } catch (e) {
         document.getElementById('update-progress').style.display = 'none';
-        document.getElementById('update-result').innerHTML = `<div style="color:#f56c6c;">升级异常: ${e.message}</div>`;
+        document.getElementById('update-result').innerHTML = `<div style="color:#f87171;">升级异常: ${e.message}</div>`;
         toast('升级异常: ' + e.message, 'error');
     } finally {
         btn.disabled = false;
@@ -1497,7 +1497,7 @@ async function loadBackups() {
         html += '</tbody></table>';
         container.innerHTML = html;
     } catch (e) {
-        container.innerHTML = `<div style="color:#f56c6c;">加载失败: ${e.message}</div>`;
+        container.innerHTML = `<div style="color:#f87171;">加载失败: ${e.message}</div>`;
     }
 }
 
@@ -1510,7 +1510,7 @@ async function rollbackBackup(name) {
         });
         if (result.success) {
             toast('回滚成功，请重启服务', 'success');
-            document.getElementById('update-result').innerHTML = `<div style="background:#f0f9eb;padding:12px;border-radius:6px;">✅ ${escapeHtml(result.message)}<br><button class="btn btn-warning" onclick="restartService()">立即重启服务</button></div>`;
+            document.getElementById('update-result').innerHTML = `<div style="background:rgba(34,197,94,0.08);border:1px solid rgba(34,197,94,0.2);padding:12px;border-radius:6px;">✅ ${escapeHtml(result.message)}<br><button class="btn btn-warning" onclick="restartService()">立即重启服务</button></div>`;
             await loadUpdateVersion();
         } else {
             toast('回滚失败: ' + (result.message || ''), 'error');

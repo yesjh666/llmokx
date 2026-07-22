@@ -46,7 +46,7 @@
         </div>
         <div class="sidebar-footer">
             <div>版本 <span id="sidebar-version">v--</span></div>
-            <div><a href="/docs" target="_blank" style="color:#909399;">API文档</a></div>
+            <div><a href="/docs" target="_blank" style="color:#6b7280;">API文档</a></div>
         </div>
     </div>
 
@@ -227,7 +227,7 @@
                     <span class="card-title">系统提示词</span>
                     <button class="btn btn-sm btn-default" onclick="reloadPrompts()">重新加载</button>
                 </div>
-                <textarea class="form-textarea" id="prompt-system" rows="3" readonly style="background:#f5f7fa;"></textarea>
+                <textarea class="form-textarea" id="prompt-system" rows="3" readonly style="background:#12141c;border:1px solid #262830;"></textarea>
             </div>
             <div class="card">
                 <div class="card-header">
@@ -235,11 +235,11 @@
                     <button class="btn btn-sm btn-primary" onclick="showAddRuleModal()">+ 添加规则</button>
                 </div>
                 <div style="margin-bottom:20px;">
-                    <h4 style="margin-bottom:10px;color:#606266;">自定义规则</h4>
+                    <h4 style="margin-bottom:10px;color:#9ca3af;">自定义规则</h4>
                     <div id="custom-rules-list"></div>
                 </div>
                 <div>
-                    <h4 style="margin-bottom:10px;color:#909399;">内置规则</h4>
+                    <h4 style="margin-bottom:10px;color:#6b7280;">内置规则</h4>
                     <div id="builtin-rules-list" style="max-height:400px;overflow-y:auto;"></div>
                 </div>
             </div>
@@ -249,11 +249,11 @@
                     <button class="btn btn-sm btn-primary" onclick="showAddExampleModal()">+ 添加示例</button>
                 </div>
                 <div style="margin-bottom:20px;">
-                    <h4 style="margin-bottom:10px;color:#606266;">自定义示例</h4>
+                    <h4 style="margin-bottom:10px;color:#9ca3af;">自定义示例</h4>
                     <div id="custom-examples-list"></div>
                 </div>
                 <div>
-                    <h4 style="margin-bottom:10px;color:#909399;">内置示例</h4>
+                    <h4 style="margin-bottom:10px;color:#6b7280;">内置示例</h4>
                     <div id="builtin-examples-list" style="max-height:500px;overflow-y:auto;"></div>
                 </div>
             </div>
@@ -294,7 +294,7 @@
                         <span class="card-title">Telethon Userbot（监听 + 转发共用）</span>
                         <button class="btn btn-sm btn-default" onclick="loadUserbotConfig()">刷新</button>
                     </div>
-                    <div style="background:#f5f7fa;padding:12px;border-radius:6px;margin-bottom:12px;font-size:13px;">
+                    <div style="background:#12141c;border:1px solid #262830;padding:12px;border-radius:6px;margin-bottom:12px;font-size:13px;">
                         <strong>Userbot</strong> 以用户身份登录 Telegram，用于监听群消息 + 发送转发信号到目标群
                     </div>
                     <div class="form-group">
@@ -325,7 +325,7 @@
                     <!-- 登录状态 -->
                     <div id="ub-test-result" style="margin-top:8px;"></div>
                     <!-- 验证码输入（发送验证码后显示） -->
-                    <div id="ub-code-section" style="display:none;margin-top:12px;padding:12px;background:#f5f7fa;border-radius:6px;">
+                    <div id="ub-code-section" style="display:none;margin-top:12px;padding:12px;background:#12141c;border:1px solid #262830;border-radius:6px;">
                         <div class="form-group" style="margin-bottom:8px;">
                             <label class="form-label">请输入收到的验证码</label>
                             <input type="text" class="form-input" id="ub-code" placeholder="输入验证码">
@@ -333,7 +333,7 @@
                         <button class="btn btn-success" onclick="loginWithCode()">验证登录</button>
                     </div>
                     <!-- 2FA 密码输入（需要两步验证时显示） -->
-                    <div id="ub-password-section" style="display:none;margin-top:12px;padding:12px;background:#fdf6ec;border-radius:6px;border-left:3px solid #e6a23c;">
+                    <div id="ub-password-section" style="display:none;margin-top:12px;padding:12px;background:rgba(245,158,11,0.08);border:1px solid rgba(245,158,11,0.2);border-radius:6px;border-left:3px solid #f59e0b;">
                         <div class="form-group" style="margin-bottom:8px;">
                             <label class="form-label">🔒 两步验证密码</label>
                             <input type="password" class="form-input" id="ub-password" placeholder="输入 Telegram 云端密码">
@@ -346,7 +346,7 @@
                     <div class="card-header">
                         <span class="card-title">Telegram Bot（通知推送专用）</span>
                     </div>
-                    <div style="background:#f5f7fa;padding:12px;border-radius:6px;margin-bottom:12px;font-size:13px;">
+                    <div style="background:#12141c;border:1px solid #262830;padding:12px;border-radius:6px;margin-bottom:12px;font-size:13px;">
                         <strong>Bot API</strong> 用于发送通知提醒到你的 Telegram（私聊或群），通过 Bot Token 认证
                     </div>
                     <div class="form-group">
@@ -367,7 +367,7 @@
                             <span class="slider"></span>
                         </label>
                     </div>
-                    <div style="background:#f5f7fa;padding:12px;border-radius:6px;margin-bottom:12px;font-size:13px;">
+                    <div style="background:#12141c;border:1px solid #262830;padding:12px;border-radius:6px;margin-bottom:12px;font-size:13px;">
                         通过 Userbot 监听指定 Telegram 群的消息，收到后自动进行 LLM 分析
                     </div>
                     <div class="form-row">
@@ -393,7 +393,7 @@
                         <span class="card-title">监听群列表</span>
                     </div>
                     <div id="monitor-chats-list" style="margin-bottom:16px;"></div>
-                    <hr style="border:none;border-top:1px solid #ebeef5;margin:12px 0;">
+                    <hr style="border:none;border-top:1px solid #262830;margin:12px 0;">
                     <div class="form-row">
                         <div class="form-group">
                             <label class="form-label">群 Chat ID</label>
@@ -438,7 +438,7 @@
                             <span class="slider"></span>
                         </label>
                     </div>
-                    <div style="background:#f5f7fa;padding:12px;border-radius:6px;margin-bottom:12px;font-size:13px;">
+                    <div style="background:#12141c;border:1px solid #262830;padding:12px;border-radius:6px;margin-bottom:12px;font-size:13px;">
                         LLM 分析出交易信号后，通过 <strong>Userbot</strong> 以用户身份将信号发送到目标 Telegram 群
                     </div>
                     <div class="form-group">
@@ -450,12 +450,12 @@
                             <input type="checkbox" id="forward-userbot-enabled"> 启用 Userbot 发送（以用户身份，否则用 Bot API）
                         </label>
                     </div>
-                    <div style="background:#f0f9eb;padding:10px;border-radius:6px;margin-bottom:12px;font-size:13px;color:#67c23a;">
+                    <div style="background:rgba(34,197,94,0.08);border:1px solid rgba(34,197,94,0.2);padding:10px;border-radius:6px;margin-bottom:12px;font-size:13px;color:#4ade80;">
                         Userbot 凭据在「连接配置」中统一管理
                     </div>
                     <button class="btn btn-primary" onclick="saveForwardConfig()">保存转发配置</button>
-                    <hr style="border:none;border-top:1px solid #ebeef5;margin:16px 0;">
-                    <h4 style="margin-bottom:10px;color:#606266;">⚖️ 平仓比例控制</h4>
+                    <hr style="border:none;border-top:1px solid #262830;margin:16px 0;">
+                    <h4 style="margin-bottom:10px;color:#9ca3af;">⚖️ 平仓比例控制</h4>
                     <div class="form-group">
                         <label>
                             <input type="checkbox" id="forward-force-full-close"> 强制全平（忽略信号比例，一律全平）
@@ -464,7 +464,7 @@
                     <div class="form-group">
                         <label class="form-label">全平阈值（平仓比例 ≥ 此值时自动全平，0-1）</label>
                         <input type="number" class="form-input" id="forward-close-threshold" value="0.5" step="0.1" min="0" max="1">
-                        <small style="color:#909399;">例如 0.5 = 信号平仓比例≥50%时自动改为全平</small>
+                        <small style="color:#6b7280;">例如 0.5 = 信号平仓比例≥50%时自动改为全平</small>
                     </div>
                 </div>
 
@@ -473,7 +473,7 @@
                         <span class="card-title">转发目标群</span>
                     </div>
                     <div id="forward-targets-list" style="margin-bottom:16px;"></div>
-                    <hr style="border:none;border-top:1px solid #ebeef5;margin:12px 0;">
+                    <hr style="border:none;border-top:1px solid #262830;margin:12px 0;">
                     <div class="form-row">
                         <div class="form-group">
                             <label class="form-label">通道</label>
@@ -505,7 +505,7 @@
                             <span class="slider"></span>
                         </label>
                     </div>
-                    <div style="background:#f5f7fa;padding:12px;border-radius:6px;margin-bottom:12px;font-size:13px;">
+                    <div style="background:#12141c;border:1px solid #262830;padding:12px;border-radius:6px;margin-bottom:12px;font-size:13px;">
                         检测到交易信号后，同时通过 <strong>Telegram Bot</strong> 和 <strong>微信</strong> 推送通知提醒你
                     </div>
                     <div class="form-row">
@@ -534,7 +534,7 @@
                             <span class="slider"></span>
                         </label>
                     </div>
-                    <div style="background:#f0f9eb;padding:10px;border-radius:6px;margin-bottom:12px;font-size:13px;color:#67c23a;">
+                    <div style="background:rgba(34,197,94,0.08);border:1px solid rgba(34,197,94,0.2);padding:10px;border-radius:6px;margin-bottom:12px;font-size:13px;color:#4ade80;">
                         Bot Token 在「连接配置」中统一管理，此处配置接收通知的 Chat ID
                     </div>
                     <div class="form-row">
@@ -726,7 +726,7 @@
                     <span class="card-title">执行升级</span>
                 </div>
                 <div style="margin-bottom:16px;">
-                    <div style="background:#fdf6ec;padding:12px;border-radius:6px;border-left:3px solid #e6a23c;margin-bottom:12px;">
+                    <div style="background:rgba(245,158,11,0.08);border:1px solid rgba(245,158,11,0.2);padding:12px;border-radius:6px;border-left:3px solid #f59e0b;margin-bottom:12px;">
                         <strong>⚠️ 升级提示：</strong><br>
                         1. 升级前会自动备份当前程序到 <code>backup/</code> 目录<br>
                         2. <code>config/</code>、<code>data/</code>、<code>logs/</code>、<code>venv/</code> 目录会保留<br>
@@ -739,7 +739,7 @@
                     </div>
                 </div>
                 <div id="update-progress" style="display:none;">
-                    <div style="background:#f5f7fa;padding:12px;border-radius:6px;">
+                    <div style="background:#12141c;border:1px solid #262830;padding:12px;border-radius:6px;">
                         <div id="update-progress-text">升级中...</div>
                     </div>
                 </div>
