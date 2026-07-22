@@ -92,31 +92,18 @@ class TelegramMonitor:
             return False, "监听未启动，无需热更新"
         return await client_manager.update_chats(chat_ids)
 
-    async def _on_message(self, event):
-        """收到新消息时的处理"""
-        try:
-            chat = await event.get_chat()
-            chat_id = str(event.chat_id)
-            chat_name = getattr(chat, "title", None) or getattr(chat, "first_name", "未知")
-            sender = await event.get_sender()
-            sender_name = getattr(sender, "first_name", "") or ""
-            text = event.message.text or ""
+    async def _on_message(self, text: str, source_chat: str, source_chat_id: str, sender: str):
+        """收到消息后的处理（由 client_manager 调用，传入已提取的消息数据）"""
+        logger.info(f"[监听] {source_chat}({source_chat_id}): {sender}: {text[:100]}")
 
-            if not text.strip():
-                return
-
-            logger.info(f"[监听] {chat_name}({chat_id}): {sender_name}: {text[:100]}")
-
-            # 交给消息管道处理
-            if self._message_handler:
-                asyncio.create_task(self._message_handler(
-                    text=text,
-                    source_chat=chat_name,
-                    source_chat_id=chat_id,
-                    sender=sender_name,
-                ))
-        except Exception as e:
-            logger.error(f"处理监听消息异常: {e}")
+        # 交给消息管道处理
+        if self._message_handler:
+            asyncio.create_task(self._message_handler(
+                text=text,
+                source_chat=source_chat,
+                source_chat_id=source_chat_id,
+                sender=sender,
+            ))
 
     def get_status(self) -> Dict[str, Any]:
         """获取监听状态"""
