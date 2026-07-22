@@ -198,12 +198,21 @@ class LLMAnalyzer:
         data = resp.json()
         choices = data.get("choices", [])
         if not choices:
-            raise ValueError("API返回空choices")
+            raise ValueError(f"API返回空choices: {json.dumps(data, ensure_ascii=False)[:500]}")
 
-        content = choices[0].get("message", {}).get("content", "")
+        message = choices[0].get("message", {})
+        content = message.get("content", "")
+
+        # 检查是否有 finish_reason（content_filter 等原因）
+        finish_reason = choices[0].get("finish_reason", "")
         if not content:
-            raise ValueError("API返回空content")
+            raise ValueError(
+                f"API返回空content (finish_reason={finish_reason}, "
+                f"role={message.get('role','?')}), "
+                f"完整响应: {json.dumps(data, ensure_ascii=False)[:500]}"
+            )
 
+        logger.info(f"LLM返回成功: content长度={len(content)}, finish_reason={finish_reason}")
         return content.strip()
 
     def _parse_response(self, content: str) -> tuple:
