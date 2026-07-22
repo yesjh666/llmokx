@@ -183,6 +183,11 @@ class LLMAnalyzer:
         }
         body["messages"] = [m for m in body["messages"] if m is not None]
 
+        # 思考模式控制（GLM-5.x 等推理模型）
+        thinking = self.config.get("thinking", False)
+        if thinking is False:
+            body["thinking"] = {"type": "disabled"}
+
         async with httpx.AsyncClient(timeout=timeout) as client:
             resp = await client.post(url, headers=headers, json=body)
 

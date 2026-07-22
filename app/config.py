@@ -27,7 +27,8 @@ DEFAULT_CONFIG = {
         "max_retries": 2,
         "temperature": 0.3,
         "max_tokens": 2000,
-        "timeout": 90
+        "timeout": 90,
+        "thinking": False
     },
     "forward": {
         "enabled": True,

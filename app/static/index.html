@@ -163,12 +163,17 @@
                 <div class="form-row">
                     <div class="form-group">
                         <label class="form-label">最大Token数</label>
-                        <input type="number" class="form-input" id="llm-max-tokens" value="800">
+                        <input type="number" class="form-input" id="llm-max-tokens" value="2000">
                     </div>
                     <div class="form-group">
                         <label class="form-label">超时时间（秒）</label>
                         <input type="number" class="form-input" id="llm-timeout" value="90">
                     </div>
+                </div>
+                <div class="form-group">
+                    <label>
+                        <input type="checkbox" id="llm-thinking"> 启用思考模式（GLM-5.x 推理模型，开启后较慢但更准确）
+                    </label>
                 </div>
                 <div style="display:flex;gap:10px;">
                     <button class="btn btn-primary" onclick="saveLLMConfig()">保存配置</button>

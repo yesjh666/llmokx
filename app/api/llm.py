@@ -39,6 +39,7 @@ class UpdateConfigRequest(BaseModel):
     temperature: Optional[float] = None
     max_tokens: Optional[int] = None
     timeout: Optional[int] = None
+    thinking: Optional[bool] = None
 
 
 @router.post("/analyze")

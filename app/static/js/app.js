@@ -104,8 +104,9 @@ async function loadLLMConfig() {
         document.getElementById('llm-fallback-model').value = cfg.fallback_model || '';
         document.getElementById('llm-max-retries').value = cfg.max_retries || 2;
         document.getElementById('llm-temperature').value = cfg.temperature || 0.3;
-        document.getElementById('llm-max-tokens').value = cfg.max_tokens || 800;
+        document.getElementById('llm-max-tokens').value = cfg.max_tokens || 2000;
         document.getElementById('llm-timeout').value = cfg.timeout || 90;
+        document.getElementById('llm-thinking').checked = cfg.thinking === true;
 
         if (cfg.api_key_configured) {
             document.getElementById('llm-api-key').placeholder = cfg.api_key_masked || '已配置(输入新值覆盖)';
@@ -126,6 +127,7 @@ async function saveLLMConfig() {
         temperature: parseFloat(document.getElementById('llm-temperature').value),
         max_tokens: parseInt(document.getElementById('llm-max-tokens').value),
         timeout: parseInt(document.getElementById('llm-timeout').value),
+        thinking: document.getElementById('llm-thinking').checked,
     };
     const apiKey = document.getElementById('llm-api-key').value;
     if (apiKey) data.api_key = apiKey;
