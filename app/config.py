@@ -31,13 +31,7 @@ DEFAULT_CONFIG = {
     },
     "forward": {
         "enabled": True,
-        "targets": [
-            {
-                "channel": "openclaw-telegram",
-                "target": "-1004208828815",
-                "description": "默认转发群"
-            }
-        ],
+        "targets": [],
         "skip_intents": ["chat", "query"],
         "telegram_bot_token": "",
         "userbot_enabled": True,

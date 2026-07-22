@@ -233,13 +233,14 @@ class IntentForwarder:
 
     async def _send_to_target(self, target_config: dict, msg: str) -> tuple:
         """发送消息到指定目标"""
-        channel = target_config.get("channel", "openclaw-telegram")
+        channel = target_config.get("channel", "telegram")
         target = target_config.get("target")
 
         if not target:
             return False, "目标未配置"
 
-        if channel == "telegram-bot" or channel == "openclaw-telegram":
+        # Telegram 类通道（兼容旧配置 openclaw-telegram）
+        if channel in ("telegram", "telegram-bot", "openclaw-telegram"):
             # 优先使用 Userbot（如果已登录）
             try:
                 from app.services.telethon_manager import client_manager
@@ -260,8 +261,12 @@ class IntentForwarder:
 
             return False, "Userbot未登录且未配置Bot Token"
 
+        elif channel in ("wechat", "openclaw-weixin"):
+            # 微信通道通过 openclaw 命令发送
+            return await self._send_via_openclaw(channel, target, msg)
+
         else:
-            # 其他通道（如微信）通过 openclaw message send
+            # 其他通道
             return await self._send_via_openclaw(channel, target, msg)
 
     async def _send_via_bot_api(self, bot_token: str, chat_id: str, text: str) -> tuple:
@@ -289,7 +294,14 @@ class IntentForwarder:
         if not client_manager._authorized:
             return False, "Userbot 未登录"
 
-        return await client_manager.send_message(chat_id, text, parse_mode="html")
+        try:
+            result = await client_manager.send_message(chat_id, text, parse_mode="html")
+            if not result[0]:
+                logger.error(f"Userbot 发送到 {chat_id} 失败: {result[1]}")
+            return result
+        except Exception as e:
+            logger.error(f"Userbot 发送异常: {e}")
+            return False, f"Userbot异常: {e}"
 
     async def _send_via_openclaw(self, channel: str, target: str, text: str) -> tuple:
         """通过 openclaw message send 命令发送（其他通道）"""
