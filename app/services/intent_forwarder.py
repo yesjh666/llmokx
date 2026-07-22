@@ -329,7 +329,7 @@ class IntentForwarder:
         except Exception as e:
             return False, f"openclaw异常: {e}"
 
-    def test_forward(self, target_config: dict) -> Dict[str, Any]:
+    async def test_forward(self, target_config: dict) -> Dict[str, Any]:
         """测试转发目标连接"""
         test_msg = json.dumps({
             "version": "1.0",
@@ -339,10 +339,7 @@ class IntentForwarder:
         }, ensure_ascii=False, indent=2)
 
         try:
-            loop = asyncio.new_event_loop()
-            asyncio.set_event_loop(loop)
-            success, info = loop.run_until_complete(self._send_to_target(target_config, test_msg))
-            loop.close()
+            success, info = await self._send_to_target(target_config, test_msg)
             return {"success": success, "message": info}
         except Exception as e:
             return {"success": False, "message": str(e)}

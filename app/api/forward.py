@@ -102,7 +102,7 @@ async def delete_target(index: int):
 @router.post("/test")
 async def test_forward(req: ForwardTestRequest):
     """测试转发目标"""
-    result = intent_forwarder.forwarder.test_forward(req.model_dump())
+    result = await intent_forwarder.forwarder.test_forward(req.model_dump())
     return result
 
 
