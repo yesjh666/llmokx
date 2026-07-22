@@ -372,9 +372,10 @@ def read_log_file(module_key: str, lines: int = 200, level: str = "") -> dict:
         level_upper = level.upper()
         all_lines = [l for l in all_lines if f"[{level_upper}]" in l]
 
-    # 取最后N行
+    # 取最后N行，然后倒序（最新在最上面）
     total = len(all_lines)
     recent = all_lines[-lines:] if total > lines else all_lines
+    recent.reverse()
 
     return {
         "module": module_key,
