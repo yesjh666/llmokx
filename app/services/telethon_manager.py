@@ -69,9 +69,9 @@ class TelethonClientManager:
             return {}
 
     def _get_session_path(self) -> str:
-        """获取 session 文件绝对路径（写死在程序 config 目录下）"""
+        """获取 session 文件路径（独立于其他程序）"""
         base_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-        session_path = os.path.join(base_dir, "config", "userbot_session")
+        session_path = os.path.join(base_dir, "config", "llmokx_session")
         os.makedirs(os.path.dirname(session_path), exist_ok=True)
         return session_path
 
