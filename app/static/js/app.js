@@ -371,6 +371,13 @@ async function reloadPrompts() {
 }
 
 // ==================== 消息处理（合并页面） ====================
+function toggleCollapse(headerEl) {
+    const body = headerEl.nextElementSibling;
+    if (!body) return;
+    headerEl.classList.toggle('collapsed');
+    body.classList.toggle('collapsed');
+}
+
 function switchPipelineTab(tabName) {
     // 切换 Tab 按钮样式
     document.querySelectorAll('.pipeline-tab').forEach(t => {

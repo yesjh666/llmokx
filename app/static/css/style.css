@@ -586,6 +586,31 @@ hr {
     margin: 16px 0;
 }
 
+/* 可折叠卡片 */
+.collapse-header {
+    cursor: pointer;
+    user-select: none;
+}
+
+.collapse-header::before {
+    content: '▼ ';
+    font-size: 12px;
+    transition: transform 0.2s;
+}
+
+.collapse-header.collapsed::before {
+    content: '▶ ';
+}
+
+.collapse-body {
+    overflow: hidden;
+    transition: max-height 0.3s ease;
+}
+
+.collapse-body.collapsed {
+    display: none;
+}
+
 /* 说明文字块 */
 .info-block {
     background: #12141c;
