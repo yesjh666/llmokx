@@ -18,7 +18,9 @@
     "open_position": {
       "orders": "入场价数组，格式 [{\"price\": 价格, \"type\": \"market/limit\", \"leverage\": 杠杆倍数, \"margin_pct\": 保证金比例}]",
       "take_profit": "止盈价数组，格式 [价格1, 价格2]",
-      "stop_loss": "止损价（数字）"
+      "stop_loss": "止损价（数字）",
+      "tp_close_ratios": "可选：各止盈位的平仓比例数组，与 take_profit 一一对应，如第一止盈平70%→[0.7,0,0]；无比例则省略",
+      "move_breakeven": "可选：开仓计划是否带移动保本止损（true/false）"
     },
     "close_position": {
       "close_ratio": "平仓比例（0.7 = 平70%，省略=全平）",
@@ -58,6 +60,9 @@
   },
 
   "rules": [
+    "⚠️ 开仓计划完整性规则(最高优先级，覆盖一切其他规则)：如果一条消息同时包含【进场/开仓指令】(市价进场/直接进场/上车/挂单进场/做空做多+价格) 和【止盈目标】(第一止盈/第二止盈/止盈XXXX/TP1/TP2)，则整条消息必须作为【单个 open_position 意图】返回！止盈目标价全部放入 take_profit 数组，止损放入 stop_loss，进场单放入 orders。绝不可以把止盈目标里的『止盈X%仓位』『移动保本损』拆成独立的 close_position 或 modify_sl 意图！",
+    "⚠️ 规则覆盖声明：『止盈X%仓位→close_position』『止盈+移动保本→close_position』这两条规则【仅适用于消息中没有开仓/进场指令时】。一旦消息含开仓/进场指令，所有止盈X%、移动保本损都归入 open_position 的 tp_close_ratios / move_breakeven 字段，是开仓出场计划的一部分，不是独立平仓指令。",
+    "示例:\"ETH做空 1928市价进场100倍2%保证金 再挂1988 100倍3%保证金 第一止盈1908止盈70%移动保本损 第二止盈1888 第三止盈1868 止损2010\" → 单个open_position: orders=[{1928,market,100,0.02},{1988,limit,100,0.03}], take_profit=[1908,1888,1868], tp_close_ratios=[0.7,0,0], move_breakeven=true, stop_loss=2010 (绝不拆成open+close两个意图!)",
     "⚠️ 多意图识别规则(最高优先级)：如果消息包含多个操作指令，必须按优先级顺序处理",
     "平仓 > 修改止盈止损 - 如果同时有平仓和修改止盈止损，先执行平仓",
     "返回 intents 数组，按执行顺序排列",
@@ -145,6 +150,11 @@
       "description": "多意图示例（修改止盈+平仓）",
       "input": "第一个止盈目标改成61888，平70%",
       "output": "{\"intents\":[{\"intent\":\"close_position\",\"params\":{\"close_ratio\":0.7}},{\"intent\":\"modify_tp\",\"params\":{\"take_profit\":[61888]}}]}"
+    },
+    {
+      "description": "开仓+多止盈目标=单意图(不拆分!)",
+      "input": "ETH做空 1928市价直接进场 100倍2%保证金 再挂1988 100倍3%保证金 第一止盈1908（止盈70%移动保本损）第二止盈1888 第三止盈1868 止损2010",
+      "output": "{\"intent\":\"open_position\",\"symbol\":\"ETH-USDT-SWAP\",\"direction\":\"short\",\"params\":{\"orders\":[{\"price\":1928,\"type\":\"market\",\"leverage\":100,\"margin_pct\":0.02},{\"price\":1988,\"type\":\"limit\",\"leverage\":100,\"margin_pct\":0.03}],\"take_profit\":[1908,1888,1868],\"tp_close_ratios\":[0.7,0,0],\"move_breakeven\":true,\"stop_loss\":2010},\"confidence\":0.95}"
     }
   ],
 

@@ -44,6 +44,7 @@ function showPage(pageId) {
         logs: loadLogFiles,
         update: loadUpdateVersion,
         settings: loadSettings,
+        learn: loadHistory,
     };
     if (loaders[pageId]) loaders[pageId]();
 }
@@ -1443,6 +1444,164 @@ function escapeHtml(str) {
         .replace(/>/g, '&gt;')
         .replace(/"/g, '&quot;')
         .replace(/'/g, '&#039;');
+}
+
+// ==================== 学习中心 ====================
+let _currentLearnId = null;
+
+async function loadHistory() {
+    try {
+        const onlyUnlearned = document.getElementById('learn-only-unlearned')?.checked;
+        const data = await api(`/api/history?limit=50&unlearned=${onlyUnlearned ? 'true' : 'false'}`);
+        renderHistoryStats(data.stats || {});
+        renderHistoryList(data.records || []);
+    } catch (e) {
+        toast('加载历史失败: ' + e.message, 'error');
+    }
+}
+
+function renderHistoryStats(s) {
+    document.getElementById('learn-stats-display').innerHTML = `
+        <span style="font-size:12px;color:#6b7280;">共 <strong style="color:#e4e4e7;">${s.total || 0}</strong></span>
+        <span style="font-size:12px;color:#6b7280;">已学习 <strong style="color:#4ade80;">${s.learned || 0}</strong></span>
+        <span style="font-size:12px;color:#6b7280;">待学习 <strong style="color:#fbbf24;">${s.unlearned || 0}</strong></span>
+    `;
+}
+
+function renderHistoryList(records) {
+    const el = document.getElementById('learn-history-list');
+    if (!records.length) {
+        el.innerHTML = '<div style="text-align:center;color:#6b7280;padding:30px;">暂无分析记录。消息处理后会自动记录到这里。</div>';
+        return;
+    }
+    const intentLabels = {
+        open_position: '📈开仓', close_position: '📉平仓', conditional_close_position: '📍条件平仓',
+        cancel_orders: '❌撤单', modify_tp: '🎯改止盈', modify_sl: '🛡️改止损', query: '❓查询', chat: '💬闲聊',
+    };
+    el.innerHTML = records.map(r => {
+        const intents = r.intents || [];
+        const badges = intents.map(i => {
+            const lbl = intentLabels[i.intent] || i.intent;
+            return `<span class="badge badge-info" style="margin-right:4px;">${lbl}</span>`;
+        }).join('') || '<span style="color:#6b7280;">无意图</span>';
+        const learnedTag = r.learned
+            ? '<span class="badge badge-success">已学习</span>'
+            : '<span class="badge badge-warning">待学习</span>';
+        return `
+            <div style="border:1px solid #262830;border-radius:8px;padding:12px;margin-bottom:10px;">
+                <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;margin-bottom:6px;">
+                    <div style="flex:1;min-width:0;">
+                        <div style="font-size:12px;color:#6b7280;margin-bottom:4px;">${escapeHtml(r.time)} · ${escapeHtml(r.source || '')} · ${escapeHtml(r.model || '')} · ${r.elapsed || 0}s</div>
+                        <div style="word-break:break-all;font-size:13px;margin-bottom:6px;">${escapeHtml(r.text || '')}</div>
+                    </div>
+                    <div style="flex-shrink:0;">${learnedTag}</div>
+                </div>
+                <div style="margin-bottom:8px;">${badges}</div>
+                <div style="display:flex;gap:6px;">
+                    <button class="btn btn-sm btn-success" onclick="openLearnModal('${r.id}')">纠错学习</button>
+                    <button class="btn btn-sm btn-default" onclick="reanalyzeHistory('${r.id}')">重新分析</button>
+                    <button class="btn btn-sm btn-danger" onclick="deleteHistory('${r.id}')">删除</button>
+                </div>
+            </div>
+        `;
+    }).join('');
+}
+
+async function openLearnModal(id) {
+    try {
+        const r = await api(`/api/history/${id}`);
+        _currentLearnId = id;
+        document.getElementById('learn-text').value = r.text || '';
+        document.getElementById('learn-wrong').value = JSON.stringify(r.intents || [], null, 2);
+        // 默认把原结果放进去让用户改
+        document.getElementById('learn-correct').value = JSON.stringify(r.intents || [], null, 2);
+        document.getElementById('learn-desc').value = '';
+        document.getElementById('modal-learn').style.display = 'flex';
+    } catch (e) {
+        toast('加载记录失败: ' + e.message, 'error');
+    }
+}
+
+function hideLearnModal() {
+    document.getElementById('modal-learn').style.display = 'none';
+    _currentLearnId = null;
+}
+
+async function submitLearn() {
+    if (!_currentLearnId) return;
+    const correctStr = document.getElementById('learn-correct').value.trim();
+    if (!correctStr) { toast('请填写正确结果', 'warning'); return; }
+    let correctIntents;
+    try {
+        const parsed = JSON.parse(correctStr);
+        correctIntents = Array.isArray(parsed) ? parsed : [parsed];
+    } catch (e) {
+        toast('正确结果不是合法JSON: ' + e.message, 'error');
+        return;
+    }
+    const genRule = document.getElementById('learn-gen-rule').checked;
+    const desc = document.getElementById('learn-desc').value.trim();
+
+    const btn = event?.target;
+    if (btn) { btn.disabled = true; btn.textContent = '学习中...'; }
+    try {
+        const res = await api(`/api/history/${_currentLearnId}/learn`, {
+            method: 'POST',
+            body: JSON.stringify({ correct_intents: correctIntents, generate_rule: genRule, description: desc }),
+        });
+        let msg = '已学习';
+        if (res.example_saved) msg += ' · 示例已入库';
+        if (res.rule_generated) { msg += ' · 规则已生成'; toast('✅ 规则已生成并入库', 'success'); }
+        else if (genRule && res.rule_error) { msg += ` · 规则生成失败: ${res.rule_error}`; }
+        toast(msg, res.rule_generated ? 'success' : 'info');
+        if (res.rule) console.log('生成规则:', res.rule);
+        hideLearnModal();
+        await loadHistory();
+    } catch (e) {
+        toast('学习失败: ' + e.message, 'error');
+    } finally {
+        if (btn) { btn.disabled = false; btn.textContent = '学习并入库'; }
+    }
+}
+
+async function reanalyzeHistory(id) {
+    try {
+        const r = await api(`/api/history/${id}`);
+        const result = await api('/api/llm/analyze', {
+            method: 'POST',
+            body: JSON.stringify({ text: r.text, context: r.context || '无持仓无挂单' }),
+        });
+        if (result.success !== false) {
+            toast(`重新分析完成，识别 ${((result.intents)||[]).length} 个意图`, 'success');
+            await loadHistory();
+        } else {
+            toast('重新分析失败: ' + (result.error || ''), 'error');
+        }
+    } catch (e) {
+        toast('重新分析失败: ' + e.message, 'error');
+    }
+}
+
+async function deleteHistory(id) {
+    if (!confirm('确定删除这条记录？')) return;
+    try {
+        await api(`/api/history/${id}`, { method: 'DELETE' });
+        toast('已删除', 'success');
+        await loadHistory();
+    } catch (e) {
+        toast('删除失败: ' + e.message, 'error');
+    }
+}
+
+async function clearHistory() {
+    if (!confirm('确定清空全部分析历史？此操作不可恢复。')) return;
+    try {
+        await api('/api/history', { method: 'DELETE' });
+        toast('已清空', 'success');
+        await loadHistory();
+    } catch (e) {
+        toast('清空失败: ' + e.message, 'error');
+    }
 }
 
 // 初始化

@@ -15,6 +15,7 @@ from app.services.llm_analyzer import analyzer
 from app.services.intent_forwarder import forwarder
 from app.services.notifier import notifier
 from app.services.telegram_monitor import monitor
+from app.services import analysis_history
 
 logger = get_logger("app")
 
@@ -211,6 +212,20 @@ class MessagePipeline:
         result["analyzed"] = True
         result["intents"] = analysis.get("intents", [])
         result["elapsed"] = analysis.get("elapsed", 0)
+
+        # 记录分析历史（供人工纠错学习）
+        try:
+            history_id = analysis_history.add_record(
+                text=text,
+                context=context_str,
+                intents=analysis.get("intents", []),
+                model=analysis.get("model", ""),
+                source="pipeline",
+                elapsed=analysis.get("elapsed", 0),
+            )
+            result["history_id"] = history_id
+        except Exception as e:
+            logger.warning(f"记录分析历史失败: {e}")
 
         intents = analysis.get("intents", [])
         if not intents:

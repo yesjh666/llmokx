@@ -5,7 +5,7 @@ from pydantic import BaseModel
 from typing import Optional
 
 from app import config
-from app.services import llm_analyzer, prompt_manager
+from app.services import llm_analyzer, prompt_manager, analysis_history
 
 router = APIRouter()
 
@@ -46,6 +46,19 @@ class UpdateConfigRequest(BaseModel):
 async def analyze_message(req: AnalyzeRequest):
     """分析消息意图"""
     result = await llm_analyzer.analyzer.analyze_intent(req.text, req.context)
+    # 记录分析历史（供学习中心纠错）
+    if result.get("success"):
+        try:
+            hid = analysis_history.add_record(
+                text=req.text,
+                context=req.context,
+                intents=result.get("intents", []),
+                source="manual",
+                elapsed=result.get("elapsed", 0),
+            )
+            result["history_id"] = hid
+        except Exception:
+            pass
     return result
 
 

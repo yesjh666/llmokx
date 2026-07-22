@@ -152,6 +152,7 @@ class LLMAnalyzer:
             "intents": intents_list,
             "raw_response": llm_content,
             "elapsed": round(elapsed, 2),
+            "model": used_model,
             "error": None,
         }
 

@@ -31,6 +31,10 @@
                 <span class="menu-icon">📡</span>
                 <span>消息处理</span>
             </div>
+            <div class="menu-item" data-page="learn" onclick="showPage('learn')">
+                <span class="menu-icon">🎓</span>
+                <span>学习中心</span>
+            </div>
             <div class="menu-item" data-page="logs" onclick="showPage('logs')">
                 <span class="menu-icon">📋</span>
                 <span>日志查看</span>
@@ -619,6 +623,36 @@
             </div>
         </div>
 
+        <!-- 学习中心 -->
+        <div class="page" id="page-learn">
+            <div class="page-header">
+                <h2>🎓 学习中心</h2>
+                <p>每条消息分析后自动记录。发现分析错误时，点「纠错学习」填正确结果，系统自动生成规则+示例入库，越用越准。</p>
+            </div>
+
+            <!-- 统计 + 操作 -->
+            <div class="card" style="padding:12px 16px;">
+                <div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap;">
+                    <div id="learn-stats-display" style="display:flex;gap:12px;flex:1;"></div>
+                    <div style="display:flex;gap:6px;flex-shrink:0;">
+                        <button class="btn btn-sm btn-default" onclick="loadHistory()">刷新</button>
+                        <label style="font-size:12px;display:flex;align-items:center;gap:4px;">
+                            <input type="checkbox" id="learn-only-unlearned" onchange="loadHistory()"> 只看未学习
+                        </label>
+                        <button class="btn btn-sm btn-danger" onclick="clearHistory()">清空</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 历史列表 -->
+            <div class="card">
+                <div class="card-header">
+                    <span class="card-title">分析历史</span>
+                </div>
+                <div id="learn-history-list"></div>
+            </div>
+        </div>
+
         <!-- 日志查看 -->
         <div class="page" id="page-logs">
             <div class="page-header">
@@ -904,6 +938,44 @@
         <div class="modal-footer">
             <button class="btn btn-default" onclick="hideAddExampleModal()">取消</button>
             <button class="btn btn-primary" onclick="addCustomExample()">添加</button>
+        </div>
+    </div>
+</div>
+
+<!-- 纠错学习模态框 -->
+<div class="modal-overlay" id="modal-learn" style="display:none;">
+    <div class="modal" style="max-width:720px;">
+        <div class="modal-header">
+            <span class="card-title">纠错学习</span>
+            <button class="btn btn-sm btn-default" onclick="hideLearnModal()">×</button>
+        </div>
+        <div class="modal-body">
+            <div class="form-group">
+                <label class="form-label">原始消息</label>
+                <textarea class="form-textarea" id="learn-text" rows="2" readonly></textarea>
+            </div>
+            <div class="form-group">
+                <label class="form-label">模型分析结果（可能错误）</label>
+                <textarea class="form-textarea" id="learn-wrong" rows="5" readonly style="background:#1a1a1a;"></textarea>
+            </div>
+            <div class="form-group">
+                <label class="form-label">✅ 正确结果（请修改为正确的JSON）*</label>
+                <textarea class="form-textarea" id="learn-correct" rows="7" placeholder='[{"intent":"open_position",...}]'></textarea>
+            </div>
+            <div class="form-group">
+                <label style="font-size:13px;display:flex;align-items:center;gap:6px;">
+                    <input type="checkbox" id="learn-gen-rule" checked>
+                    同时调 LLM 自动生成规则（对比错误与正确结果，总结一条规则）
+                </label>
+            </div>
+            <div class="form-group">
+                <label class="form-label">说明（可选）</label>
+                <input type="text" class="form-input" id="learn-desc" placeholder="例如：开仓+止盈目标应合并为单意图">
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-default" onclick="hideLearnModal()">取消</button>
+            <button class="btn btn-success" onclick="submitLearn()">学习并入库</button>
         </div>
     </div>
 </div>

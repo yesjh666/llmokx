@@ -12,7 +12,7 @@ from fastapi.responses import HTMLResponse, FileResponse
 from fastapi.middleware.cors import CORSMiddleware
 
 from app import config
-from app.api import llm, forward, notification, settings, logs, update, monitor
+from app.api import llm, forward, notification, settings, logs, update, monitor, history
 from app.core.logging_config import setup_logging, get_logger
 from app.services import updater
 
@@ -54,6 +54,7 @@ app.include_router(settings.router, prefix="/api/settings", tags=["系统设置"
 app.include_router(logs.router, prefix="/api/logs", tags=["日志查看"])
 app.include_router(update.router, prefix="/api/update", tags=["升级管理"])
 app.include_router(monitor.router, prefix="/api/monitor", tags=["监听管理"])
+app.include_router(history.router, prefix="/api/history", tags=["分析历史"])
 
 
 @app.on_event("startup")
