@@ -22,12 +22,11 @@ logger = get_logger("app")
 class MessagePipeline:
     """消息处理管道"""
 
-    # 最大并发 LLM 请求数
     MAX_CONCURRENT_LLM = 3
-    # LLM 结果缓存时间（秒）
     CACHE_TTL = 60
-    # 缓存最大条数
     CACHE_MAX = 100
+    DEDUP_TTL = 300  # 去重窗口 5 分钟
+    DEDUP_MAX = 500
 
     def __init__(self):
         self._stats = {
@@ -36,17 +35,40 @@ class MessagePipeline:
             "total_forwarded": 0,
             "total_notified": 0,
             "total_cached": 0,
+            "total_deduped": 0,
             "errors": 0,
             "last_message_time": None,
             "last_message_text": None,
             "last_intent": None,
         }
         self._llm_semaphore = asyncio.Semaphore(self.MAX_CONCURRENT_LLM)
-        self._cache: OrderedDict = OrderedDict()  # text_hash -> (result, timestamp)
+        self._cache: OrderedDict = OrderedDict()
+        self._dedup_cache: OrderedDict = OrderedDict()  # text_hash -> timestamp
 
     def _get_cache_key(self, text: str) -> str:
         """生成缓存 key"""
         return hashlib.md5(text.strip().lower().encode()).hexdigest()
+
+    def _is_duplicate(self, text: str, source_chat_id: str) -> bool:
+        """检查是否为重复消息（5分钟内相同内容）"""
+        # 用 内容+去除来源 作为 key，不同群同样的消息视为重复
+        key = hashlib.md5(text.strip().lower().encode()).hexdigest()
+
+        now = time.time()
+        # 清理过期条目
+        expired = [k for k, ts in self._dedup_cache.items() if now - ts > self.DEDUP_TTL]
+        for k in expired:
+            del self._dedup_cache[k]
+
+        if key in self._dedup_cache:
+            # 更新时间
+            self._dedup_cache.move_to_end(key)
+            return True
+
+        self._dedup_cache[key] = now
+        while len(self._dedup_cache) > self.DEDUP_MAX:
+            self._dedup_cache.popitem(last=False)
+        return False
 
     def _get_cached(self, text: str) -> Optional[dict]:
         """获取缓存的分析结果"""
@@ -106,6 +128,14 @@ class MessagePipeline:
             "source_chat": source_chat,
             "sender": sender,
         }
+
+        # 去重检查（不同群同样的消息只处理一次）
+        if self._is_duplicate(text, source_chat_id):
+            self._stats["total_deduped"] += 1
+            logger.info(f"[去重] 跳过重复消息: {source_chat}: {text[:60]}...")
+            result["message"] = "重复消息已跳过"
+            result["deduped"] = True
+            return result
 
         # 检查 LLM 分析是否启用
         if not analyzer.is_enabled():

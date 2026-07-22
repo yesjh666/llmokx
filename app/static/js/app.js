@@ -452,6 +452,10 @@ async function loadPipelineStatus() {
                     <div class="stat-value">${s.total_received || 0}</div>
                 </div>
                 <div class="stat-card">
+                    <div class="stat-label">已去重</div>
+                    <div class="stat-value">${s.total_deduped || 0}</div>
+                </div>
+                <div class="stat-card">
                     <div class="stat-label">已分析</div>
                     <div class="stat-value">${s.total_analyzed || 0}</div>
                 </div>
@@ -855,6 +859,10 @@ async function loadPipelineStatus() {
                 <div class="stat-card">
                     <div class="stat-label">收到消息</div>
                     <div class="stat-value">${s.total_received || 0}</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">已去重</div>
+                    <div class="stat-value">${s.total_deduped || 0}</div>
                 </div>
                 <div class="stat-card">
                     <div class="stat-label">已分析</div>
