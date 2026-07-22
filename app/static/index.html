@@ -380,6 +380,18 @@
                             <input type="text" class="form-input" id="monitor-keywords" placeholder="做多,做空,btc,eth">
                         </div>
                     </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label class="form-label">消息去重时间（秒，0=关闭）</label>
+                            <input type="number" class="form-input" id="monitor-msg-dedup" value="300">
+                            <small style="color:#6b7280;">相同内容在N秒内只处理一次（跨群去重）</small>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">意图去重时间（秒，0=关闭）</label>
+                            <input type="number" class="form-input" id="monitor-intent-dedup" value="300">
+                            <small style="color:#6b7280;">同币种同操作在N秒内只转发一次</small>
+                        </div>
+                    </div>
                     <div class="form-group">
                         <label>
                             <input type="checkbox" id="monitor-notify-on-signal" checked> 检测到交易信号时发送通知

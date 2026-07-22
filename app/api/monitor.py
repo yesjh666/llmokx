@@ -27,6 +27,8 @@ class MonitorConfigUpdate(BaseModel):
     default_context: Optional[str] = None
     notify_on_signal: Optional[bool] = None
     userbot_config_file: Optional[str] = None
+    message_dedup_seconds: Optional[int] = None
+    intent_dedup_seconds: Optional[int] = None
 
 
 class AddChatRequest(BaseModel):

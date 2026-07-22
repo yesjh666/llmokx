@@ -25,7 +25,6 @@ class MessagePipeline:
     MAX_CONCURRENT_LLM = 3
     CACHE_TTL = 60
     CACHE_MAX = 100
-    DEDUP_TTL = 300  # 去重窗口 5 分钟
     DEDUP_MAX = 500
 
     def __init__(self):
@@ -36,6 +35,7 @@ class MessagePipeline:
             "total_notified": 0,
             "total_cached": 0,
             "total_deduped": 0,
+            "total_intent_deduped": 0,
             "errors": 0,
             "last_message_time": None,
             "last_message_text": None,
@@ -43,31 +43,57 @@ class MessagePipeline:
         }
         self._llm_semaphore = asyncio.Semaphore(self.MAX_CONCURRENT_LLM)
         self._cache: OrderedDict = OrderedDict()
-        self._dedup_cache: OrderedDict = OrderedDict()  # text_hash -> timestamp
+        self._msg_dedup_cache: OrderedDict = OrderedDict()
+        self._intent_dedup_cache: OrderedDict = OrderedDict()  # "intent:symbol" -> timestamp
 
     def _get_cache_key(self, text: str) -> str:
         """生成缓存 key"""
         return hashlib.md5(text.strip().lower().encode()).hexdigest()
 
     def _is_duplicate(self, text: str, source_chat_id: str) -> bool:
-        """检查是否为重复消息（5分钟内相同内容）"""
-        # 用 内容+去除来源 作为 key，不同群同样的消息视为重复
+        """检查是否为重复消息"""
+        pipeline_cfg = config.get_section("monitor")
+        ttl = pipeline_cfg.get("message_dedup_seconds", 300)
+        if ttl <= 0:
+            return False
+
         key = hashlib.md5(text.strip().lower().encode()).hexdigest()
-
         now = time.time()
-        # 清理过期条目
-        expired = [k for k, ts in self._dedup_cache.items() if now - ts > self.DEDUP_TTL]
-        for k in expired:
-            del self._dedup_cache[k]
 
-        if key in self._dedup_cache:
-            # 更新时间
-            self._dedup_cache.move_to_end(key)
+        expired = [k for k, ts in self._msg_dedup_cache.items() if now - ts > ttl]
+        for k in expired:
+            del self._msg_dedup_cache[k]
+
+        if key in self._msg_dedup_cache:
+            self._msg_dedup_cache.move_to_end(key)
             return True
 
-        self._dedup_cache[key] = now
-        while len(self._dedup_cache) > self.DEDUP_MAX:
-            self._dedup_cache.popitem(last=False)
+        self._msg_dedup_cache[key] = now
+        while len(self._msg_dedup_cache) > self.DEDUP_MAX:
+            self._msg_dedup_cache.popitem(last=False)
+        return False
+
+    def _is_intent_duplicate(self, intent: str, symbol: str) -> bool:
+        """检查是否为重复的交易意图（同币种同操作）"""
+        pipeline_cfg = config.get_section("monitor")
+        ttl = pipeline_cfg.get("intent_dedup_seconds", 300)
+        if ttl <= 0:
+            return False
+
+        key = f"{intent}:{symbol}"
+        now = time.time()
+
+        expired = [k for k, ts in self._intent_dedup_cache.items() if now - ts > ttl]
+        for k in expired:
+            del self._intent_dedup_cache[k]
+
+        if key in self._intent_dedup_cache:
+            self._intent_dedup_cache.move_to_end(key)
+            return True
+
+        self._intent_dedup_cache[key] = now
+        while len(self._intent_dedup_cache) > self.DEDUP_MAX:
+            self._intent_dedup_cache.popitem(last=False)
         return False
 
     def _get_cached(self, text: str) -> Optional[dict]:
@@ -199,6 +225,13 @@ class MessagePipeline:
 
             if intent_name in skip_intents:
                 logger.info(f"[管道] 意图 {intent_name} 在跳过列表中")
+                continue
+
+            # 意图去重：同币种同操作在时间窗口内只转发一次
+            symbol = intent.get("symbol", "")
+            if self._is_intent_duplicate(intent_name, symbol):
+                self._stats["total_intent_deduped"] += 1
+                logger.info(f"[意图去重] 跳过重复意图: {intent_name} {symbol}")
                 continue
 
             fwd = await forwarder.forward_intent(intent, text, source_chat)

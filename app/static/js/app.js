@@ -456,6 +456,10 @@ async function loadPipelineStatus() {
                     <div class="stat-value">${s.total_deduped || 0}</div>
                 </div>
                 <div class="stat-card">
+                    <div class="stat-label">意图去重</div>
+                    <div class="stat-value">${s.total_intent_deduped || 0}</div>
+                </div>
+                <div class="stat-card">
                     <div class="stat-label">已分析</div>
                     <div class="stat-value">${s.total_analyzed || 0}</div>
                 </div>
@@ -742,6 +746,8 @@ async function loadMonitorConfig() {
         document.getElementById('monitor-enabled').checked = cfg.enabled !== false;
         document.getElementById('monitor-min-length').value = cfg.min_message_length || 5;
         document.getElementById('monitor-keywords').value = (cfg.keywords || []).join(', ');
+        document.getElementById('monitor-msg-dedup').value = cfg.message_dedup_seconds ?? 300;
+        document.getElementById('monitor-intent-dedup').value = cfg.intent_dedup_seconds ?? 300;
         document.getElementById('monitor-notify-on-signal').checked = cfg.notify_on_signal !== false;
         renderMonitorChats(cfg.chat_ids || [], cfg.chat_names || {});
     } catch (e) {
@@ -776,6 +782,8 @@ async function saveMonitorConfig() {
         enabled: document.getElementById('monitor-enabled').checked,
         min_message_length: parseInt(document.getElementById('monitor-min-length').value),
         keywords: kwStr ? kwStr.split(',').map(s => s.trim()).filter(Boolean) : [],
+        message_dedup_seconds: parseInt(document.getElementById('monitor-msg-dedup').value),
+        intent_dedup_seconds: parseInt(document.getElementById('monitor-intent-dedup').value),
         notify_on_signal: document.getElementById('monitor-notify-on-signal').checked,
     };
     try {
@@ -863,6 +871,10 @@ async function loadPipelineStatus() {
                 <div class="stat-card">
                     <div class="stat-label">已去重</div>
                     <div class="stat-value">${s.total_deduped || 0}</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">意图去重</div>
+                    <div class="stat-value">${s.total_intent_deduped || 0}</div>
                 </div>
                 <div class="stat-card">
                     <div class="stat-label">已分析</div>

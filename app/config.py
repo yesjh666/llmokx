@@ -69,7 +69,9 @@ DEFAULT_CONFIG = {
         "keywords": [],
         "default_context": "无持仓无挂单",
         "notify_on_signal": True,
-        "userbot_config_file": "config/telegram_userbot.json"
+        "userbot_config_file": "config/telegram_userbot.json",
+        "message_dedup_seconds": 300,
+        "intent_dedup_seconds": 300
     },
     "server": {
         "host": "0.0.0.0",
