@@ -479,18 +479,13 @@ deploy_files() {
     $SUDO cp -r "$SCRIPT_DIR/config" "$INSTALL_DIR/"
 
     # 配置文件：如已存在不覆盖（保留用户配置），不存在则从 example 创建
-    for cfg_pair in "unified-config.example.json:unified-config.json" "telegram_userbot.example.json:telegram_userbot.json"; do
+    for cfg_pair in "unified-config.example.json:unified-config.json" "telegram_userbot.example.json:telegram_userbot.json" "prompts.example.json:prompts.json"; do
         src_file="${cfg_pair%%:*}"
         dst_file="${cfg_pair##*:}"
         if [[ ! -f "$INSTALL_DIR/config/$dst_file" ]] && [[ -f "$INSTALL_DIR/config/$src_file" ]]; then
             $SUDO cp "$INSTALL_DIR/config/$src_file" "$INSTALL_DIR/config/$dst_file"
         fi
     done
-
-    # prompts.json 直接复制（不包含敏感信息）
-    if [[ ! -f "$INSTALL_DIR/config/prompts.json" ]] && [[ -f "$SCRIPT_DIR/config/prompts.json" ]]; then
-        $SUDO cp "$SCRIPT_DIR/config/prompts.json" "$INSTALL_DIR/config/"
-    fi
 
     $SUDO cp "$SCRIPT_DIR/run.py" "$INSTALL_DIR/"
     $SUDO cp "$SCRIPT_DIR/requirements.txt" "$INSTALL_DIR/"

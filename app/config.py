@@ -26,7 +26,7 @@ DEFAULT_CONFIG = {
         "fallback_model": "gpt-3.5-turbo",
         "max_retries": 2,
         "temperature": 0.3,
-        "max_tokens": 800,
+        "max_tokens": 2000,
         "timeout": 90
     },
     "forward": {

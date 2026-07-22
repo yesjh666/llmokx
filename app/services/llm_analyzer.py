@@ -202,13 +202,21 @@ class LLMAnalyzer:
 
         message = choices[0].get("message", {})
         content = message.get("content", "")
-
-        # 检查是否有 finish_reason（content_filter 等原因）
         finish_reason = choices[0].get("finish_reason", "")
+
+        # GLM 等模型有 reasoning_content 字段（思考过程），先消耗 token 再输出 content
+        # 如果 content 为空但 finish_reason=length，说明 token 被思考过程用完了
+        if not content and finish_reason == "length":
+            reasoning = message.get("reasoning_content", "")
+            if reasoning:
+                raise ValueError(
+                    f"max_tokens 不足：模型思考过程消耗了全部 token（reasoning_content 长度={len(reasoning)}），"
+                    f"请增大 max_tokens 设置（当前={self.config.get('max_tokens', 800)}，建议 2000+）"
+                )
+
         if not content:
             raise ValueError(
-                f"API返回空content (finish_reason={finish_reason}, "
-                f"role={message.get('role','?')}), "
+                f"API返回空content (finish_reason={finish_reason}), "
                 f"完整响应: {json.dumps(data, ensure_ascii=False)[:500]}"
             )
 

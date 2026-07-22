@@ -32,6 +32,8 @@ data/*
 config/unified-config.json
 config/telegram_userbot.json
 config/prompts.json
+config/llmokx_session.session
+config/llmokx_session.session-journal
 config/userbot_session.session
 config/userbot_session.session-journal
 config/*.session
