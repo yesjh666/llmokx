@@ -496,6 +496,8 @@ async function loadForwardConfig() {
         document.getElementById('forward-enabled').checked = cfg.enabled !== false;
         document.getElementById('forward-userbot-enabled').checked = cfg.userbot_enabled !== false;
         document.getElementById('forward-skip-intents').value = (cfg.skip_intents || ['chat', 'query']).join(', ');
+        document.getElementById('forward-force-full-close').checked = cfg.force_full_close === true;
+        document.getElementById('forward-close-threshold').value = cfg.force_close_threshold ?? 0.5;
         await loadForwardTargets();
     } catch (e) {
         toast('加载转发配置失败: ' + e.message, 'error');
@@ -533,6 +535,8 @@ async function saveForwardConfig() {
         enabled: document.getElementById('forward-enabled').checked,
         userbot_enabled: document.getElementById('forward-userbot-enabled').checked,
         skip_intents: skipStr ? skipStr.split(',').map(s => s.trim()) : [],
+        force_full_close: document.getElementById('forward-force-full-close').checked,
+        force_close_threshold: parseFloat(document.getElementById('forward-close-threshold').value),
     };
     try {
         await api('/api/forward/config', { method: 'PUT', body: JSON.stringify(data) });

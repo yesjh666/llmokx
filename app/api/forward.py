@@ -22,6 +22,8 @@ class UpdateForwardConfigRequest(BaseModel):
     skip_intents: Optional[List[str]] = None
     telegram_bot_token: Optional[str] = None
     userbot_enabled: Optional[bool] = None
+    force_full_close: Optional[bool] = None
+    force_close_threshold: Optional[float] = None
 
 
 class ForwardTestRequest(BaseModel):

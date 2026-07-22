@@ -36,7 +36,9 @@ DEFAULT_CONFIG = {
         "skip_intents": ["chat", "query"],
         "telegram_bot_token": "",
         "userbot_enabled": True,
-        "userbot_config_file": "config/telegram_userbot.json"
+        "userbot_config_file": "config/telegram_userbot.json",
+        "force_full_close": False,
+        "force_close_threshold": 0.5
     },
     "notification": {
         "enabled": True,

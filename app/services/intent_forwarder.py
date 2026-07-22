@@ -88,6 +88,9 @@ class IntentForwarder:
                 "message": f"意图{intent}在跳过列表中,不转发",
             }
 
+        # 平仓比例控制
+        intent_result = self._adjust_close_ratio(intent_result)
+
         # 构建标准JSON信号
         signal_data = self._build_signal_data(intent_result, text, source_chat)
         msg = json.dumps(signal_data, ensure_ascii=False, indent=2)
@@ -141,6 +144,32 @@ class IntentForwarder:
         )
 
         return result
+
+    def _adjust_close_ratio(self, intent_result: dict) -> dict:
+        """
+        调整平仓比例
+        - force_full_close=True：不管信号比例，强制全平(close_ratio=1.0)
+        - force_close_threshold：平仓比例 >= 阈值时强制全平
+        """
+        intent = intent_result.get("intent")
+        if intent not in ("close_position", "conditional_close_position"):
+            return intent_result
+
+        force_full = self.config.get("force_full_close", False)
+        threshold = self.config.get("force_close_threshold", 0.5)
+        params = intent_result.get("params", {})
+        ratio = params.get("close_ratio")
+
+        if force_full:
+            params["close_ratio"] = 1.0
+            intent_result["params"] = params
+            logger.info(f"[平仓控制] 强制全平已开启，close_ratio={ratio} → 1.0")
+        elif ratio is not None and ratio >= threshold:
+            params["close_ratio"] = 1.0
+            intent_result["params"] = params
+            logger.info(f"[平仓控制] 比例 {ratio} >= 阈值 {threshold}，close_ratio={ratio} → 1.0")
+
+        return intent_result
 
     def _build_signal_data(
         self,

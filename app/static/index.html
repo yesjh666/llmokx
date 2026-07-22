@@ -454,6 +454,18 @@
                         Userbot 凭据在「连接配置」中统一管理
                     </div>
                     <button class="btn btn-primary" onclick="saveForwardConfig()">保存转发配置</button>
+                    <hr style="border:none;border-top:1px solid #ebeef5;margin:16px 0;">
+                    <h4 style="margin-bottom:10px;color:#606266;">⚖️ 平仓比例控制</h4>
+                    <div class="form-group">
+                        <label>
+                            <input type="checkbox" id="forward-force-full-close"> 强制全平（忽略信号比例，一律全平）
+                        </label>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">全平阈值（平仓比例 ≥ 此值时自动全平，0-1）</label>
+                        <input type="number" class="form-input" id="forward-close-threshold" value="0.5" step="0.1" min="0" max="1">
+                        <small style="color:#909399;">例如 0.5 = 信号平仓比例≥50%时自动改为全平</small>
+                    </div>
                 </div>
 
                 <div class="card">
