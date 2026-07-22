@@ -98,6 +98,16 @@ class TelethonClientManager:
         session_path = self._get_session_path()
         return os.path.exists(session_path + ".session")
 
+    async def _cache_dialogs(self):
+        """获取 dialogs 列表，缓存群信息到 session（解决 entity 找不到问题）"""
+        try:
+            count = 0
+            async for dialog in self._client.iter_dialogs(limit=500):
+                count += 1
+            logger.info(f"已缓存 {count} 个对话/群信息")
+        except Exception as e:
+            logger.warning(f"缓存 dialogs 失败（不影响基本功能）: {e}")
+
     # ==================== 连接 ====================
 
     async def connect(self) -> Tuple[bool, str]:
@@ -210,12 +220,13 @@ class TelethonClientManager:
 
         # 重新检查授权状态（session 文件可能已有效）
         try:
-            if await self._client.is_user_authorized():
-                self._authorized = True
-                self._login_state = LOGIN_STATE_AUTHORIZED
-                self._me = await self._client.get_me()
-                self._secure_session_file()
-                logger.info(f"Session 恢复成功: {self._me.first_name} (ID: {self._me.id})")
+                if await self._client.is_user_authorized():
+                    self._authorized = True
+                    self._login_state = LOGIN_STATE_AUTHORIZED
+                    self._me = await self._client.get_me()
+                    self._secure_session_file()
+                    await self._cache_dialogs()
+                    logger.info(f"Session 恢复成功: {self._me.first_name} (ID: {self._me.id})")
                 return {
                     "success": True,
                     "state": LOGIN_STATE_AUTHORIZED,
@@ -297,11 +308,12 @@ class TelethonClientManager:
 
         try:
             await self._client.sign_in(phone=phone, code=code)
-            # 登录成功
+            # 登录成功，获取 dialogs 缓存群信息
             self._authorized = True
             self._login_state = LOGIN_STATE_AUTHORIZED
             self._me = await self._client.get_me()
             self._secure_session_file()
+            await self._cache_dialogs()
             logger.info(f"登录成功: {self._me.first_name} (ID: {self._me.id})")
             return {
                 "success": True,
@@ -417,7 +429,30 @@ class TelethonClientManager:
 
         try:
             target_id = int(chat_id) if isinstance(chat_id, str) else chat_id
-            await self._client.send_message(target_id, text, parse_mode=parse_mode)
+
+            # 先解析实体（Telethon 需要先"认识"这个群）
+            try:
+                entity = await self._client.get_entity(target_id)
+            except Exception:
+                # get_entity 失败，尝试从 dialogs 中查找
+                logger.info(f"get_entity 失败，从 dialogs 缓存中查找 {target_id}")
+                entity = None
+                async for dialog in self._client.iter_dialogs(limit=200):
+                    if dialog.id == target_id or str(dialog.id) == str(target_id):
+                        entity = dialog.entity
+                        logger.info(f"在 dialogs 中找到群: {dialog.name}")
+                        break
+
+                if not entity:
+                    # 再试一次 get_entity（带 -100 前缀转换）
+                    try:
+                        # Telethon 内部 ID 格式: -100xxxxx, 但有时需要去掉前缀
+                        raw_id = abs(target_id) - 1000000000000 if abs(target_id) > 1000000000000 else target_id
+                        entity = await self._client.get_entity(raw_id)
+                    except Exception:
+                        return False, f"无法找到群 {target_id}，请确认 Userbot 账号已加入该群"
+
+            await self._client.send_message(entity, text, parse_mode=parse_mode)
             return True, "发送成功"
         except Exception as e:
             return False, f"发送失败: {e}"
