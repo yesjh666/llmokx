@@ -240,22 +240,25 @@ class IntentForwarder:
             return False, "目标未配置"
 
         if channel == "telegram-bot" or channel == "openclaw-telegram":
-            # 尝试 Userbot 发送（如果启用）
-            if self.config.get("userbot_enabled", False):
-                try:
+            # 优先使用 Userbot（如果已登录）
+            try:
+                from app.services.telethon_manager import client_manager
+                if client_manager._authorized:
                     success, info = await self._send_via_userbot(target, msg)
                     if success:
                         return True, f"Userbot: {info}"
-                    logger.warning(f"Userbot发送失败: {info}, 尝试Bot API")
-                except Exception as e:
-                    logger.warning(f"Userbot异常: {e}, 尝试Bot API")
+                    logger.warning(f"Userbot发送失败: {info}")
+                else:
+                    logger.info("Userbot 未授权，使用 Bot API")
+            except Exception as e:
+                logger.warning(f"Userbot异常: {e}")
 
             # 降级: Bot API 发送
             bot_token = self.config.get("telegram_bot_token", "")
             if bot_token:
                 return await self._send_via_bot_api(bot_token, target, msg)
 
-            return False, "未配置Bot Token且Userbot不可用"
+            return False, "Userbot未登录且未配置Bot Token"
 
         else:
             # 其他通道（如微信）通过 openclaw message send
@@ -315,12 +318,15 @@ class IntentForwarder:
 
     async def test_forward(self, target_config: dict) -> Dict[str, Any]:
         """测试转发目标连接"""
+        self._refresh_config()
         test_msg = json.dumps({
             "version": "1.0",
             "type": "TEST_SIGNAL",
             "timestamp": datetime.now().strftime("%Y-%m-%dT%H:%M:%S+08:00"),
             "message": "这是一条测试转发消息",
         }, ensure_ascii=False, indent=2)
+
+        logger.info(f"测试转发到 {target_config.get('channel')} / {target_config.get('target')}")
 
         try:
             success, info = await self._send_to_target(target_config, test_msg)
