@@ -478,11 +478,10 @@ async function saveSharedBotToken() {
     const token = document.getElementById('shared-bot-token').value.trim();
     if (!token) { toast('请输入 Bot Token', 'warning'); return; }
     try {
-        // 同时保存到 forward 和 notification 配置
         await api('/api/forward/config', { method: 'PUT', body: JSON.stringify({ telegram_bot_token: token }) });
         await api('/api/notification/config', { method: 'PUT', body: JSON.stringify({ telegram: { bot_token: token } }) });
         toast('Bot Token 已保存（转发+通知共用）', 'success');
-        document.getElementById('shared-bot-token').value = '';
+        await loadUserbotConfig();
     } catch (e) {
         toast('保存失败: ' + e.message, 'error');
     }

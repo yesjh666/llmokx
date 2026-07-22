@@ -134,16 +134,23 @@ def save_config(config: dict) -> bool:
             return False
 
 
+def _deep_merge(base: dict, update: dict) -> dict:
+    """深度合并字典：嵌套字典递归合并，而非整体替换"""
+    for key, value in update.items():
+        if key in base and isinstance(base[key], dict) and isinstance(value, dict):
+            _deep_merge(base[key], value)
+        else:
+            base[key] = value
+    return base
+
+
 def update_section(section: str, data: dict) -> bool:
-    """更新指定配置节"""
+    """更新指定配置节（支持嵌套深度合并）"""
     config = load_config()
     if section not in config:
         config[section] = {}
-    config[section].update(data)
+    _deep_merge(config[section], data)
     result = save_config(config)
-    # 保存后清除缓存，确保下次读取的是最新值
-    if result:
-        reload_config()
     return result
 
 
