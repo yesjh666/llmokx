@@ -266,25 +266,25 @@
                 <p>Telegram 监听 → LLM 分析 → Userbot转发到群 → Bot/微信通知提醒</p>
             </div>
 
-            <!-- 流程状态总览 + 处理统计（置顶） -->
-            <div class="card">
-                <div class="card-header">
-                    <span class="card-title">流程状态</span>
-                    <button class="btn btn-sm btn-default" onclick="loadPipelineStatus()">刷新</button>
+            <!-- 紧凑状态栏：状态 + 统计 + 按钮 一行 -->
+            <div class="card" style="padding:12px 16px;">
+                <div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap;">
+                    <!-- 状态徽章 -->
+                    <div style="display:flex;gap:8px;align-items:center;flex-shrink:0;">
+                        <span style="color:#6b7280;font-size:12px;">监听</span>
+                        <span id="pipeline-status-display"></span>
+                    </div>
+                    <!-- 分隔线 -->
+                    <div style="width:1px;height:24px;background:#262830;"></div>
+                    <!-- 统计数字 -->
+                    <div id="monitor-stats-display" style="display:flex;gap:12px;flex:1;min-width:0;"></div>
+                    <!-- 按钮 -->
+                    <div style="display:flex;gap:6px;flex-shrink:0;">
+                        <button class="btn btn-sm btn-success" onclick="startMonitor()" id="btn-monitor-start">启动</button>
+                        <button class="btn btn-sm btn-danger" onclick="stopMonitor()" id="btn-monitor-stop">停止</button>
+                        <button class="btn btn-sm btn-default" onclick="loadPipelineStatus()">刷新</button>
+                    </div>
                 </div>
-                <div id="pipeline-status-display"></div>
-                <div style="display:flex;gap:10px;margin-top:12px;">
-                    <button class="btn btn-success" onclick="startMonitor()" id="btn-monitor-start">启动监听</button>
-                    <button class="btn btn-danger" onclick="stopMonitor()" id="btn-monitor-stop">停止监听</button>
-                </div>
-            </div>
-
-            <div class="card">
-                <div class="card-header">
-                    <span class="card-title">处理统计</span>
-                    <button class="btn btn-sm btn-default" onclick="loadPipelineStatus()">刷新</button>
-                </div>
-                <div id="monitor-stats-display"></div>
             </div>
 
             <!-- Tab 导航 -->
