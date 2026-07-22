@@ -280,27 +280,11 @@ class IntentForwarder:
             return False, f"Bot API异常: {e}"
 
     async def _send_via_userbot(self, chat_id, text: str) -> tuple:
-        """通过 Telegram Userbot 发送（复用统一 client）"""
+        """通过 Telegram Userbot 发送（复用统一 client_manager）"""
         from app.services.telethon_manager import client_manager
 
-        # 检查 userbot 是否启用
-        userbot_config_file = self.config.get("userbot_config_file", "config/telegram_userbot.json")
-        config_path = os.path.join(
-            os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))),
-            userbot_config_file,
-        )
-
-        if not os.path.exists(config_path):
-            return False, f"Userbot配置文件不存在: {config_path}"
-
-        try:
-            with open(config_path, "r") as f:
-                ub_config = json.load(f)
-        except Exception as e:
-            return False, f"读取Userbot配置失败: {e}"
-
-        if not ub_config.get("enabled", False):
-            return False, "Userbot未启用"
+        if not client_manager._authorized:
+            return False, "Userbot 未登录"
 
         return await client_manager.send_message(chat_id, text, parse_mode="html")
 
