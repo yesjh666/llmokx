@@ -169,7 +169,6 @@ class IntentForwarder:
             "symbol": symbol,
             "direction": direction,
             "confidence": confidence,
-            "reason": reason,
             "original_text": text[:500],
             "params": {},
         }
