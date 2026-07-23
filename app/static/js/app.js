@@ -1619,12 +1619,132 @@ function escapeHtml(str) {
 // ==================== 学习中心 ====================
 let _currentLearnId = null;
 
+// ---- AI助手（对话生成规则/Prompt） ----
+let _assistantMessages = [];   // {role, content, suggestion?}
+
+function renderAssistantMessages() {
+    const el = document.getElementById('assistant-messages');
+    if (!el) return;
+    if (!_assistantMessages.length) {
+        el.innerHTML = '<div style="text-align:center;color:#6b7280;padding:30px;">描述你想要的规则或Prompt，AI帮你生成</div>';
+        return;
+    }
+    el.innerHTML = _assistantMessages.map((m, i) => {
+        const isUser = m.role === 'user';
+        const bubbleStyle = isUser
+            ? 'background:#2563eb;color:#fff;margin-left:40px;'
+            : 'background:#262830;color:#e4e4e7;margin-right:40px;';
+        let actionHtml = '';
+        if (!isUser && m.suggestion) {
+            if (m.suggestion.type === 'rule') {
+                actionHtml = `<div style="margin-top:8px;"><button class="btn btn-sm btn-success" onclick="applyAssistantRule(${i})">添加到规则库</button></div>`;
+            } else if (m.suggestion.type === 'prompt') {
+                actionHtml = `<div style="margin-top:8px;"><button class="btn btn-sm btn-success" onclick="applyAssistantPrompt(${i})">应用为 System Prompt</button></div>`;
+            }
+        }
+        return `
+            <div style="margin-bottom:10px;">
+                <div style="${bubbleStyle}padding:10px 12px;border-radius:8px;font-size:13px;white-space:pre-wrap;word-break:break-word;">${escapeHtml(m.content)}</div>
+                ${actionHtml}
+            </div>
+        `;
+    }).join('');
+    el.scrollTop = el.scrollHeight;
+}
+
+async function sendAssistantMessage() {
+    const input = document.getElementById('assistant-input');
+    const text = input.value.trim();
+    if (!text) return;
+    const target = document.getElementById('assistant-target').value;
+
+    _assistantMessages.push({ role: 'user', content: text });
+    input.value = '';
+    renderAssistantMessages();
+
+    const btn = document.getElementById('assistant-send');
+    btn.disabled = true; btn.textContent = '生成中...';
+    // 占位助手回复
+    _assistantMessages.push({ role: 'assistant', content: '思考中...' });
+    renderAssistantMessages();
+    const placeholderIdx = _assistantMessages.length - 1;
+
+    try {
+        // 只发role/content，不带suggestion
+        const hist = _assistantMessages
+            .filter(m => m.role === 'user' || (m.role === 'assistant' && m.content !== '思考中...'))
+            .map(m => ({ role: m.role, content: m.content }));
+        const res = await api('/api/llm/assistant/chat', {
+            method: 'POST',
+            body: JSON.stringify({ messages: hist, target }),
+        });
+        if (res.success !== false) {
+            _assistantMessages[placeholderIdx] = {
+                role: 'assistant',
+                content: res.reply || '(空回复)',
+                suggestion: res.suggestion || null,
+            };
+        } else {
+            _assistantMessages[placeholderIdx] = {
+                role: 'assistant',
+                content: '❌ 失败: ' + (res.error || '未知错误'),
+            };
+        }
+    } catch (e) {
+        _assistantMessages[placeholderIdx] = {
+            role: 'assistant',
+            content: '❌ 请求失败: ' + e.message,
+        };
+    } finally {
+        btn.disabled = false; btn.textContent = '发送';
+        renderAssistantMessages();
+    }
+}
+
+function clearAssistantChat() {
+    _assistantMessages = [];
+    renderAssistantMessages();
+}
+
+async function applyAssistantRule(idx) {
+    const m = _assistantMessages[idx];
+    if (!m || !m.suggestion) return;
+    const rule = m.suggestion.rule;
+    if (!confirm('确定把这条规则加入规则库？\n\n' + rule)) return;
+    try {
+        await api('/api/llm/prompts/rules', {
+            method: 'POST',
+            body: JSON.stringify({ rule, priority: 0, description: 'AI助手生成: ' + (m.suggestion.reason || ''), enabled: true }),
+        });
+        toast('规则已加入规则库', 'success');
+    } catch (e) {
+        toast('添加失败: ' + e.message, 'error');
+    }
+}
+
+async function applyAssistantPrompt(idx) {
+    const m = _assistantMessages[idx];
+    if (!m || !m.suggestion) return;
+    const prompt = m.suggestion.prompt;
+    if (!confirm('⚠️ 这将替换当前的 System Prompt，确定应用？\n\n' + prompt.slice(0, 200) + (prompt.length > 200 ? '...' : ''))) return;
+    try {
+        await api('/api/llm/prompts/system', {
+            method: 'PUT',
+            body: JSON.stringify({ system_prompt: prompt }),
+        });
+        toast('System Prompt 已更新', 'success');
+    } catch (e) {
+        toast('应用失败: ' + e.message, 'error');
+    }
+}
+
 async function loadHistory() {
     try {
         const onlyUnlearned = document.getElementById('learn-only-unlearned')?.checked;
         const data = await api(`/api/history?limit=50&unlearned=${onlyUnlearned ? 'true' : 'false'}`);
         renderHistoryStats(data.stats || {});
         renderHistoryList(data.records || []);
+        renderAssistantMessages();   // 初始化AI助手对话框
     } catch (e) {
         toast('加载历史失败: ' + e.message, 'error');
     }

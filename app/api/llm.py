@@ -6,7 +6,7 @@ from pydantic import BaseModel
 from typing import Optional, List
 
 from app import config
-from app.services import llm_analyzer, prompt_manager, analysis_history
+from app.services import llm_analyzer, prompt_manager, analysis_history, prompt_assistant
 
 router = APIRouter()
 
@@ -45,6 +45,17 @@ class TestModelRequest(BaseModel):
     api_key: str = ""
     model: str = ""
     thinking: bool = False
+
+
+class AssistantChatRequest(BaseModel):
+    """AI助手对话"""
+    messages: List[dict] = []
+    target: str = "rule"   # rule | prompt
+
+
+class UpdateSystemPromptRequest(BaseModel):
+    """更新System Prompt"""
+    system_prompt: str
 
 
 class UpdateConfigRequest(BaseModel):
@@ -282,3 +293,22 @@ async def test_stored_model(index: int):
         thinking=m.get("thinking", False),
     )
     return result
+
+
+# ==================== AI助手（对话生成规则/Prompt） ====================
+
+@router.post("/assistant/chat")
+async def assistant_chat(req: AssistantChatRequest):
+    """对话式生成规则或System Prompt"""
+    target = req.target if req.target in ("rule", "prompt") else "rule"
+    result = await prompt_assistant.chat_generate(req.messages, target)
+    return result
+
+
+@router.put("/prompts/system")
+async def update_system_prompt(req: UpdateSystemPromptRequest):
+    """更新 System Prompt（AI助手应用建议时调用）"""
+    prompts = prompt_manager.load_prompts()
+    prompts["system_prompt"] = req.system_prompt
+    ok = prompt_manager.save_prompts(prompts)
+    return {"success": ok, "message": "System Prompt 已更新" if ok else "更新失败"}

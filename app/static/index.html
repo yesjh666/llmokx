@@ -660,6 +660,26 @@
                 </div>
             </div>
 
+            <!-- AI助手（对话生成规则/Prompt） -->
+            <div class="card">
+                <div class="card-header">
+                    <span class="card-title">💬 AI 助手（对话生成规则 / Prompt）</span>
+                    <select id="assistant-target" class="form-select" style="width:auto;font-size:13px;">
+                        <option value="rule">生成规则</option>
+                        <option value="prompt">生成 System Prompt</option>
+                    </select>
+                </div>
+                <div class="info-block">
+                    用自然语言描述你想要的识别行为，例如："消息带'强平控制'字样时忽略强平价"。助手会生成可直接入库的规则或Prompt，点「添加」即可生效。
+                </div>
+                <div id="assistant-messages" style="max-height:360px;overflow-y:auto;margin:12px 0;min-height:120px;"></div>
+                <div style="display:flex;gap:8px;">
+                    <input type="text" class="form-input" id="assistant-input" placeholder="描述你想要的规则或Prompt..." onkeydown="if(event.key==='Enter')sendAssistantMessage()">
+                    <button class="btn btn-primary" onclick="sendAssistantMessage()" id="assistant-send">发送</button>
+                    <button class="btn btn-default" onclick="clearAssistantChat()">清空</button>
+                </div>
+            </div>
+
             <!-- 历史列表 -->
             <div class="card">
                 <div class="card-header">
