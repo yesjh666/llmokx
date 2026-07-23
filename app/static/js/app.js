@@ -132,7 +132,7 @@ async function saveLLMConfig() {
         timeout: parseInt(document.getElementById('llm-timeout').value),
         thinking: document.getElementById('llm-thinking').checked,
     };
-    const apiKey = document.getElementById('llm-api-key').value;
+    const apiKey = document.getElementById('llm-api-key').value.trim();
     if (apiKey) data.api_key = apiKey;
 
     try {

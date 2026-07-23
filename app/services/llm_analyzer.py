@@ -375,6 +375,12 @@ class LLMAnalyzer:
                 except Exception:
                     detail = resp.text[:200]
 
+                # 认证类错误：附带实际使用的key/api_base（脱敏），方便排查
+                if resp.status_code in (401, 403):
+                    masked = (api_key[:6] + "..." + api_key[-4:]) if len(api_key) > 12 else "***"
+                    hint = (f" | 实际发送: key={masked}(长度{len(api_key)}) base={api_base} "
+                            f"model={model}。可能原因: key错误/过期/含空格、或key与api_base不属于同一服务商")
+                    detail = detail + hint
                 return {
                     "success": False,
                     "error": f"HTTP {resp.status_code}: {detail}",

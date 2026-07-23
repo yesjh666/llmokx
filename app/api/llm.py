@@ -124,6 +124,10 @@ async def update_config(req: UpdateConfigRequest):
     data = {k: v for k, v in req.model_dump().items() if v is not None}
     if not data:
         raise HTTPException(status_code=400, detail="没有要更新的字段")
+    # 清理关键字段的空白（粘贴的key/base带空格/换行会导致401）
+    for k in ("api_key", "api_base", "model", "fallback_model"):
+        if isinstance(data.get(k), str):
+            data[k] = data[k].strip()
     success = config.update_section("llm_analysis", data)
     return {"success": success, "message": "配置已更新" if success else "更新失败"}
 
@@ -226,10 +230,10 @@ async def add_model(req: BackupModel):
         raise HTTPException(status_code=400, detail="model 和 api_base 不能为空")
     models = _get_backup_models()
     models.append({
-        "name": req.name or req.model,
-        "api_base": req.api_base,
-        "api_key": req.api_key or "",
-        "model": req.model,
+        "name": (req.name or req.model).strip(),
+        "api_base": req.api_base.strip(),
+        "api_key": (req.api_key or "").strip(),
+        "model": req.model.strip(),
         "thinking": req.thinking,
         "temperature": req.temperature,
     })
@@ -245,10 +249,10 @@ async def update_model(index: int, req: BackupModel):
         raise HTTPException(status_code=404, detail="模型不存在")
     old = models[index]
     models[index] = {
-        "name": req.name or req.model or old.get("name", ""),
-        "api_base": req.api_base or old.get("api_base", ""),
-        "api_key": req.api_key if req.api_key else old.get("api_key", ""),
-        "model": req.model or old.get("model", ""),
+        "name": (req.name or req.model or old.get("name", "")).strip(),
+        "api_base": (req.api_base or old.get("api_base", "")).strip(),
+        "api_key": (req.api_key if req.api_key else old.get("api_key", "")).strip(),
+        "model": (req.model or old.get("model", "")).strip(),
         "thinking": req.thinking,
         "temperature": req.temperature if req.temperature is not None else old.get("temperature"),
     }
