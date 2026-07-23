@@ -207,6 +207,9 @@ function renderBackupModels(models) {
             ? '<span class="badge badge-success">Key已配</span>'
             : '<span class="badge badge-warning">Key未配</span>';
         const thinkTag = m.thinking ? '<span class="badge badge-info">思考</span>' : '';
+        const tempTag = (m.temperature !== null && m.temperature !== undefined)
+            ? `<span class="badge badge-info">T=${m.temperature}</span>`
+            : '<span class="badge">T=全局</span>';
         return `
             <div style="border:1px solid #262830;border-radius:8px;padding:12px;margin-bottom:10px;">
                 <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;flex-wrap:wrap;gap:6px;">
@@ -214,7 +217,7 @@ function renderBackupModels(models) {
                         <strong>${escapeHtml(m.name || m.model)}</strong>
                         <span style="color:#6b7280;font-size:12px;margin-left:6px;">#${i + 1} 顺序</span>
                     </div>
-                    <div style="display:flex;gap:4px;">${keyTag} ${thinkTag}</div>
+                    <div style="display:flex;gap:4px;">${keyTag} ${thinkTag} ${tempTag}</div>
                 </div>
                 <div style="font-size:13px;color:#a1a1aa;">
                     <div>模型: <strong style="color:#e4e4e7;">${escapeHtml(m.model)}</strong></div>
@@ -239,6 +242,7 @@ function showAddModelModal() {
     document.getElementById('model-api-key').placeholder = 'sk-xxxxxxxxxxxx';
     document.getElementById('model-key-hint').textContent = '';
     document.getElementById('model-model').value = '';
+    document.getElementById('model-temperature').value = '';
     document.getElementById('model-thinking').checked = false;
     document.getElementById('modal-model').style.display = 'flex';
 }
@@ -256,6 +260,7 @@ async function editBackupModel(index) {
         document.getElementById('model-api-key').placeholder = m.api_key_masked || '(已配置，留空不修改)';
         document.getElementById('model-key-hint').textContent = m.api_key_configured ? '（已配置，留空则不修改）' : '';
         document.getElementById('model-model').value = m.model || '';
+        document.getElementById('model-temperature').value = (m.temperature !== null && m.temperature !== undefined) ? m.temperature : '';
         document.getElementById('model-thinking').checked = m.thinking === true;
         document.getElementById('modal-model').style.display = 'flex';
     } catch (e) {
@@ -277,6 +282,8 @@ async function saveModelFromModal() {
     };
     const apiKey = document.getElementById('model-api-key').value.trim();
     if (apiKey) data.api_key = apiKey;
+    const tempStr = document.getElementById('model-temperature').value.trim();
+    if (tempStr !== '') data.temperature = parseFloat(tempStr);
     if (!data.api_base || !data.model) { toast('API Base 和 模型 不能为空', 'warning'); return; }
 
     try {

@@ -36,6 +36,7 @@ class BackupModel(BaseModel):
     api_key: Optional[str] = None   # None/空 = 不修改已有key（编辑时）
     model: str = ""
     thinking: bool = False
+    temperature: Optional[float] = None   # None = 用全局temperature
 
 
 class TestModelRequest(BaseModel):
@@ -219,6 +220,7 @@ async def add_model(req: BackupModel):
         "api_key": req.api_key or "",
         "model": req.model,
         "thinking": req.thinking,
+        "temperature": req.temperature,
     })
     _save_backup_models(models)
     return {"success": True, "message": "备用模型已添加", "count": len(models)}
@@ -237,6 +239,7 @@ async def update_model(index: int, req: BackupModel):
         "api_key": req.api_key if req.api_key else old.get("api_key", ""),
         "model": req.model or old.get("model", ""),
         "thinking": req.thinking,
+        "temperature": req.temperature if req.temperature is not None else old.get("temperature"),
     }
     _save_backup_models(models)
     return {"success": True, "message": "备用模型已更新"}

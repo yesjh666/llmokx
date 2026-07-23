@@ -83,24 +83,32 @@ class LLMAnalyzer:
         api_base = self.config.get("api_base", "https://api.openai.com/v1")
         api_key = self.config.get("api_key", "")
         thinking = self.config.get("thinking", False)
+        global_temp = self.config.get("temperature", 0.3)
 
         chain = [{
             "model": model, "api_base": api_base, "api_key": api_key,
-            "thinking": thinking, "label": model,
+            "thinking": thinking, "label": model, "temperature": global_temp,
         }]
         if fallback_model and fallback_model != model:
             chain.append({
                 "model": fallback_model, "api_base": api_base, "api_key": api_key,
-                "thinking": thinking, "label": fallback_model,
+                "thinking": thinking, "label": fallback_model, "temperature": global_temp,
             })
         for bk in (self.config.get("backup_models") or []):
             if bk.get("model") and bk.get("api_base"):
+                # 备用模型可单独配置 temperature，未配置则用全局值
+                bk_temp = bk.get("temperature")
+                try:
+                    bk_temp = float(bk_temp) if bk_temp is not None else global_temp
+                except (TypeError, ValueError):
+                    bk_temp = global_temp
                 chain.append({
                     "model": bk["model"],
                     "api_base": bk["api_base"],
                     "api_key": bk.get("api_key") or api_key,
                     "thinking": bk.get("thinking", thinking),
                     "label": bk.get("name") or bk["model"],
+                    "temperature": bk_temp,
                 })
 
         # 最多尝试 max_retries 个模型（至少 1 个）
@@ -115,7 +123,8 @@ class LLMAnalyzer:
         for attempt, mcfg in enumerate(attempts):
             try:
                 content = await self._call_llm_api(
-                    prompt, mcfg["model"], mcfg["api_base"], mcfg["api_key"], mcfg["thinking"]
+                    prompt, mcfg["model"], mcfg["api_base"], mcfg["api_key"],
+                    mcfg["thinking"], mcfg["temperature"],
                 )
                 if content:
                     llm_content = content
@@ -182,11 +191,11 @@ class LLMAnalyzer:
         }
 
     async def _call_llm_api(
-        self, prompt: str, model: str, api_base: str, api_key: str, thinking: bool
+        self, prompt: str, model: str, api_base: str, api_key: str, thinking: bool,
+        temperature: float = 0.3,
     ) -> Optional[str]:
         """调用大模型API（OpenAI兼容接口）- 使用传入的连接参数"""
         timeout = self.config.get("timeout", 90)
-        temperature = self.config.get("temperature", 0.3)
         max_tokens = self.config.get("max_tokens", 800)
         system_prompt = prompt_manager.load_prompts().get("system_prompt", "")
 
