@@ -76,40 +76,65 @@ class LLMAnalyzer:
         # 构建prompt
         prompt = prompt_manager.build_prompt(text, context_str)
 
-        # 调用LLM（带重试）
+        # 构建故障转移链：主模型 → 备用模型(fallback) → backup_models 列表
         max_retries = self.config.get("max_retries", 2)
         model = self.config.get("model", "gpt-4o-mini")
         fallback_model = self.config.get("fallback_model", "gpt-3.5-turbo")
+        api_base = self.config.get("api_base", "https://api.openai.com/v1")
+        api_key = self.config.get("api_key", "")
+        thinking = self.config.get("thinking", False)
+
+        chain = [{
+            "model": model, "api_base": api_base, "api_key": api_key,
+            "thinking": thinking, "label": model,
+        }]
+        if fallback_model and fallback_model != model:
+            chain.append({
+                "model": fallback_model, "api_base": api_base, "api_key": api_key,
+                "thinking": thinking, "label": fallback_model,
+            })
+        for bk in (self.config.get("backup_models") or []):
+            if bk.get("model") and bk.get("api_base"):
+                chain.append({
+                    "model": bk["model"],
+                    "api_base": bk["api_base"],
+                    "api_key": bk.get("api_key") or api_key,
+                    "thinking": bk.get("thinking", thinking),
+                    "label": bk.get("name") or bk["model"],
+                })
+
+        # 最多尝试 max_retries 个模型（至少 1 个）
+        attempts = chain[: max(1, max_retries)]
 
         start_time = time.time()
         last_error = None
         llm_content = None
         actual_retries = 0
-        used_model = model
+        used_model = attempts[0]["label"] if attempts else model
 
-        for attempt in range(max_retries):
-            current_model = model
-            if attempt > 0:
-                actual_retries = attempt
-                logger.info(f"LLM第{attempt + 1}次重试,切换到备用模型: {fallback_model}")
-                current_model = fallback_model
-                used_model = fallback_model
-
+        for attempt, mcfg in enumerate(attempts):
             try:
-                content = await self._call_llm_api(current_model, prompt)
+                content = await self._call_llm_api(
+                    prompt, mcfg["model"], mcfg["api_base"], mcfg["api_key"], mcfg["thinking"]
+                )
                 if content:
                     llm_content = content
+                    used_model = mcfg["label"]
+                    if attempt > 0:
+                        actual_retries = attempt
+                        logger.info(f"LLM第{attempt + 1}个模型成功: {mcfg['label']}")
                     break
             except Exception as e:
                 last_error = str(e)
-                logger.warning(f"LLM调用失败(第{attempt + 1}次): {e}")
-                if attempt < max_retries - 1:
+                actual_retries = attempt
+                logger.warning(f"LLM调用失败(第{attempt + 1}个, {mcfg['label']}): {e}")
+                if attempt < len(attempts) - 1:
                     time.sleep(1)
 
         elapsed = time.time() - start_time
 
         if not llm_content:
-            error_msg = f"LLM调用失败(重试{max_retries}次): {last_error}"
+            error_msg = f"LLM调用失败(尝试{len(attempts)}个模型均失败): {last_error}"
             log_llm_analysis(
                 text=text, context=context_str, success=False,
                 model=used_model, elapsed=elapsed, error=error_msg,
@@ -156,10 +181,10 @@ class LLMAnalyzer:
             "error": None,
         }
 
-    async def _call_llm_api(self, model: str, prompt: str) -> Optional[str]:
-        """调用大模型API（OpenAI兼容接口）"""
-        api_base = self.config.get("api_base", "https://api.openai.com/v1").rstrip("/")
-        api_key = self.config.get("api_key", "")
+    async def _call_llm_api(
+        self, prompt: str, model: str, api_base: str, api_key: str, thinking: bool
+    ) -> Optional[str]:
+        """调用大模型API（OpenAI兼容接口）- 使用传入的连接参数"""
         timeout = self.config.get("timeout", 90)
         temperature = self.config.get("temperature", 0.3)
         max_tokens = self.config.get("max_tokens", 800)
@@ -168,7 +193,7 @@ class LLMAnalyzer:
         if not api_key:
             raise ValueError("API Key未配置，请在设置中填写")
 
-        url = f"{api_base}/chat/completions"
+        url = f"{api_base.rstrip('/')}/chat/completions"
         headers = {
             "Authorization": f"Bearer {api_key}",
             "Content-Type": "application/json",
@@ -185,7 +210,6 @@ class LLMAnalyzer:
         body["messages"] = [m for m in body["messages"] if m is not None]
 
         # 思考模式控制（GLM-5.x 等推理模型）
-        thinking = self.config.get("thinking", False)
         if thinking is False:
             body["thinking"] = {"type": "disabled"}
 
@@ -277,13 +301,10 @@ class LLMAnalyzer:
 
         return intents_list, None
 
-    async def test_connection(self) -> Dict[str, Any]:
-        """真正测试 LLM 连接（发送一条简短消息验证 API 可用性）"""
-        self._refresh_config()
-        api_key = self.config.get("api_key", "")
-        api_base = self.config.get("api_base", "")
-        model = self.config.get("model", "")
-
+    async def _test_model(
+        self, api_base: str, api_key: str, model: str, thinking: bool
+    ) -> Dict[str, Any]:
+        """测试单个模型配置的连通性（发送一条简短消息）"""
         if not api_key:
             return {"success": False, "error": "API Key未配置"}
         if not api_base:
@@ -291,7 +312,6 @@ class LLMAnalyzer:
         if not model:
             return {"success": False, "error": "模型未配置"}
 
-        # 发送真实测试请求
         url = f"{api_base.rstrip('/')}/chat/completions"
         headers = {
             "Authorization": f"Bearer {api_key}",
@@ -302,7 +322,6 @@ class LLMAnalyzer:
             "messages": [{"role": "user", "content": "回复OK"}],
             "max_tokens": 10,
         }
-        thinking = self.config.get("thinking", False)
         if thinking is False:
             body["thinking"] = {"type": "disabled"}
 
@@ -340,6 +359,23 @@ class LLMAnalyzer:
                 }
         except Exception as e:
             return {"success": False, "error": f"请求异常: {e}"}
+
+    async def test_connection(self) -> Dict[str, Any]:
+        """测试主模型连接"""
+        self._refresh_config()
+        return await self._test_model(
+            api_base=self.config.get("api_base", ""),
+            api_key=self.config.get("api_key", ""),
+            model=self.config.get("model", ""),
+            thinking=self.config.get("thinking", False),
+        )
+
+    async def test_model_config(
+        self, api_base: str, api_key: str, model: str, thinking: bool = False
+    ) -> Dict[str, Any]:
+        """测试任意模型配置（用于测试备用模型）"""
+        self._refresh_config()
+        return await self._test_model(api_base, api_key, model, thinking)
 
 
 # 全局单例

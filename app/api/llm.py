@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
 """LLM分析相关API"""
+import copy
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
-from typing import Optional
+from typing import Optional, List
 
 from app import config
 from app.services import llm_analyzer, prompt_manager, analysis_history
@@ -26,6 +27,23 @@ class AddExampleRequest(BaseModel):
     input_text: str
     output_json: str
     description: str = ""
+
+
+class BackupModel(BaseModel):
+    """备用模型配置"""
+    name: str = ""
+    api_base: str = ""
+    api_key: Optional[str] = None   # None/空 = 不修改已有key（编辑时）
+    model: str = ""
+    thinking: bool = False
+
+
+class TestModelRequest(BaseModel):
+    """测试任意模型配置"""
+    api_base: str = ""
+    api_key: str = ""
+    model: str = ""
+    thinking: bool = False
 
 
 class UpdateConfigRequest(BaseModel):
@@ -62,15 +80,29 @@ async def analyze_message(req: AnalyzeRequest):
     return result
 
 
+def _mask_key(key: str) -> str:
+    """脱敏 API Key"""
+    if not key:
+        return ""
+    if len(key) <= 12:
+        return "****"
+    return key[:8] + "****" + key[-4:]
+
+
 @router.get("/config")
 async def get_config():
-    """获取LLM配置"""
-    cfg = config.get_section("llm_analysis")
-    # 隐藏API Key的完整值
+    """获取LLM配置（API Key脱敏）"""
+    cfg = copy.deepcopy(config.get_section("llm_analysis"))
     if cfg.get("api_key"):
-        cfg = dict(cfg)
-        cfg["api_key_masked"] = cfg["api_key"][:8] + "****" + cfg["api_key"][-4:]
+        cfg["api_key_masked"] = _mask_key(cfg["api_key"])
         cfg["api_key_configured"] = True
+    # 备用模型的 key 也脱敏
+    for bk in cfg.get("backup_models", []) or []:
+        if bk.get("api_key"):
+            bk["api_key_masked"] = _mask_key(bk["api_key"])
+            bk["api_key_configured"] = True
+        else:
+            bk["api_key_configured"] = False
     return cfg
 
 
@@ -149,3 +181,101 @@ async def delete_example(index: int):
     """删除自定义示例"""
     success = prompt_manager.remove_example(index)
     return {"success": success, "message": "示例已删除" if success else "删除失败"}
+
+
+# ==================== 备用模型管理 ====================
+
+def _get_backup_models() -> list:
+    return list(config.get_section("llm_analysis").get("backup_models") or [])
+
+
+def _save_backup_models(models: list):
+    config.update_section("llm_analysis", {"backup_models": models})
+
+
+@router.get("/models")
+async def list_models():
+    """获取备用模型列表（key脱敏）"""
+    models = copy.deepcopy(_get_backup_models())
+    for bk in models:
+        if bk.get("api_key"):
+            bk["api_key_masked"] = _mask_key(bk["api_key"])
+            bk["api_key_configured"] = True
+        else:
+            bk["api_key_configured"] = False
+        bk.pop("api_key", None)
+    return {"models": models}
+
+
+@router.post("/models")
+async def add_model(req: BackupModel):
+    """添加备用模型"""
+    if not req.model or not req.api_base:
+        raise HTTPException(status_code=400, detail="model 和 api_base 不能为空")
+    models = _get_backup_models()
+    models.append({
+        "name": req.name or req.model,
+        "api_base": req.api_base,
+        "api_key": req.api_key or "",
+        "model": req.model,
+        "thinking": req.thinking,
+    })
+    _save_backup_models(models)
+    return {"success": True, "message": "备用模型已添加", "count": len(models)}
+
+
+@router.put("/models/{index}")
+async def update_model(index: int, req: BackupModel):
+    """更新备用模型（api_key 为空时保留原值）"""
+    models = _get_backup_models()
+    if index < 0 or index >= len(models):
+        raise HTTPException(status_code=404, detail="模型不存在")
+    old = models[index]
+    models[index] = {
+        "name": req.name or req.model or old.get("name", ""),
+        "api_base": req.api_base or old.get("api_base", ""),
+        "api_key": req.api_key if req.api_key else old.get("api_key", ""),
+        "model": req.model or old.get("model", ""),
+        "thinking": req.thinking,
+    }
+    _save_backup_models(models)
+    return {"success": True, "message": "备用模型已更新"}
+
+
+@router.delete("/models/{index}")
+async def delete_model(index: int):
+    """删除备用模型"""
+    models = _get_backup_models()
+    if index < 0 or index >= len(models):
+        raise HTTPException(status_code=404, detail="模型不存在")
+    models.pop(index)
+    _save_backup_models(models)
+    return {"success": True, "message": "备用模型已删除", "count": len(models)}
+
+
+@router.post("/models/test")
+async def test_model(req: TestModelRequest):
+    """测试任意模型配置（不保存，仅测连通性）"""
+    result = await llm_analyzer.analyzer.test_model_config(
+        api_base=req.api_base,
+        api_key=req.api_key,
+        model=req.model,
+        thinking=req.thinking,
+    )
+    return result
+
+
+@router.post("/models/{index}/test")
+async def test_stored_model(index: int):
+    """测试已保存的备用模型（用存储的key，index 从0开始）"""
+    models = _get_backup_models()
+    if index < 0 or index >= len(models):
+        raise HTTPException(status_code=404, detail="模型不存在")
+    m = models[index]
+    result = await llm_analyzer.analyzer.test_model_config(
+        api_base=m.get("api_base", ""),
+        api_key=m.get("api_key", ""),
+        model=m.get("model", ""),
+        thinking=m.get("thinking", False),
+    )
+    return result

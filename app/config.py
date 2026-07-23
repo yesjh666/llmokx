@@ -28,7 +28,8 @@ DEFAULT_CONFIG = {
         "temperature": 0.3,
         "max_tokens": 2000,
         "timeout": 90,
-        "thinking": False
+        "thinking": False,
+        "backup_models": []
     },
     "forward": {
         "enabled": True,

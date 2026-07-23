@@ -112,6 +112,8 @@ async function loadLLMConfig() {
         if (cfg.api_key_configured) {
             document.getElementById('llm-api-key').placeholder = cfg.api_key_masked || '已配置(输入新值覆盖)';
         }
+        // 加载备用模型列表
+        loadBackupModels();
     } catch (e) {
         toast('加载LLM配置失败: ' + e.message, 'error');
     }
@@ -178,6 +180,167 @@ async function analyzeTest() {
         resultEl.innerHTML = formatJSON(result);
     } catch (e) {
         resultEl.innerHTML = `<div style="color:#f87171;">错误: ${e.message}</div>`;
+    }
+}
+
+// ==================== 备用模型管理 ====================
+let _editingModelIndex = null;   // null=新增, 数字=编辑
+
+async function loadBackupModels() {
+    try {
+        const data = await api('/api/llm/models');
+        renderBackupModels(data.models || []);
+    } catch (e) {
+        toast('加载备用模型失败: ' + e.message, 'error');
+    }
+}
+
+function renderBackupModels(models) {
+    const el = document.getElementById('backup-models-list');
+    if (!el) return;
+    if (!models.length) {
+        el.innerHTML = '<div style="text-align:center;color:#6b7280;padding:20px;">暂无备用模型。主模型失败后将无后备。</div>';
+        return;
+    }
+    el.innerHTML = models.map((m, i) => {
+        const keyTag = m.api_key_configured
+            ? '<span class="badge badge-success">Key已配</span>'
+            : '<span class="badge badge-warning">Key未配</span>';
+        const thinkTag = m.thinking ? '<span class="badge badge-info">思考</span>' : '';
+        return `
+            <div style="border:1px solid #262830;border-radius:8px;padding:12px;margin-bottom:10px;">
+                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;flex-wrap:wrap;gap:6px;">
+                    <div>
+                        <strong>${escapeHtml(m.name || m.model)}</strong>
+                        <span style="color:#6b7280;font-size:12px;margin-left:6px;">#${i + 1} 顺序</span>
+                    </div>
+                    <div style="display:flex;gap:4px;">${keyTag} ${thinkTag}</div>
+                </div>
+                <div style="font-size:13px;color:#a1a1aa;">
+                    <div>模型: <strong style="color:#e4e4e7;">${escapeHtml(m.model)}</strong></div>
+                    <div style="word-break:break-all;">Base: ${escapeHtml(m.api_base)}</div>
+                </div>
+                <div style="display:flex;gap:6px;margin-top:8px;">
+                    <button class="btn btn-sm btn-default" onclick="editBackupModel(${i})">编辑</button>
+                    <button class="btn btn-sm btn-default" onclick="testBackupModel(${i})">测试</button>
+                    <button class="btn btn-sm btn-danger" onclick="deleteBackupModel(${i})">删除</button>
+                </div>
+            </div>
+        `;
+    }).join('');
+}
+
+function showAddModelModal() {
+    _editingModelIndex = null;
+    document.getElementById('model-modal-title').textContent = '添加备用模型';
+    document.getElementById('model-name').value = '';
+    document.getElementById('model-api-base').value = '';
+    document.getElementById('model-api-key').value = '';
+    document.getElementById('model-api-key').placeholder = 'sk-xxxxxxxxxxxx';
+    document.getElementById('model-key-hint').textContent = '';
+    document.getElementById('model-model').value = '';
+    document.getElementById('model-thinking').checked = false;
+    document.getElementById('modal-model').style.display = 'flex';
+}
+
+async function editBackupModel(index) {
+    try {
+        const data = await api('/api/llm/models');
+        const m = (data.models || [])[index];
+        if (!m) return;
+        _editingModelIndex = index;
+        document.getElementById('model-modal-title').textContent = `编辑备用模型 #${index + 1}`;
+        document.getElementById('model-name').value = m.name || '';
+        document.getElementById('model-api-base').value = m.api_base || '';
+        document.getElementById('model-api-key').value = '';
+        document.getElementById('model-api-key').placeholder = m.api_key_masked || '(已配置，留空不修改)';
+        document.getElementById('model-key-hint').textContent = m.api_key_configured ? '（已配置，留空则不修改）' : '';
+        document.getElementById('model-model').value = m.model || '';
+        document.getElementById('model-thinking').checked = m.thinking === true;
+        document.getElementById('modal-model').style.display = 'flex';
+    } catch (e) {
+        toast('加载失败: ' + e.message, 'error');
+    }
+}
+
+function hideModelModal() {
+    document.getElementById('modal-model').style.display = 'none';
+    _editingModelIndex = null;
+}
+
+async function saveModelFromModal() {
+    const data = {
+        name: document.getElementById('model-name').value.trim(),
+        api_base: document.getElementById('model-api-base').value.trim(),
+        model: document.getElementById('model-model').value.trim(),
+        thinking: document.getElementById('model-thinking').checked,
+    };
+    const apiKey = document.getElementById('model-api-key').value.trim();
+    if (apiKey) data.api_key = apiKey;
+    if (!data.api_base || !data.model) { toast('API Base 和 模型 不能为空', 'warning'); return; }
+
+    try {
+        if (_editingModelIndex === null) {
+            if (!apiKey) { toast('新增模型需填写 API Key', 'warning'); return; }
+            await api('/api/llm/models', { method: 'POST', body: JSON.stringify(data) });
+            toast('备用模型已添加', 'success');
+        } else {
+            await api(`/api/llm/models/${_editingModelIndex}`, { method: 'PUT', body: JSON.stringify(data) });
+            toast('备用模型已更新', 'success');
+        }
+        hideModelModal();
+        await loadBackupModels();
+    } catch (e) {
+        toast('保存失败: ' + e.message, 'error');
+    }
+}
+
+async function testModelFromModal() {
+    const apiKey = document.getElementById('model-api-key').value.trim();
+    const data = {
+        api_base: document.getElementById('model-api-base').value.trim(),
+        model: document.getElementById('model-model').value.trim(),
+        thinking: document.getElementById('model-thinking').checked,
+        api_key: apiKey,
+    };
+    if (!data.api_base || !data.model) { toast('请填写 API Base 和 模型', 'warning'); return; }
+    if (!apiKey && _editingModelIndex === null) { toast('请填写 API Key', 'warning'); return; }
+
+    toast('测试中...', 'info');
+    try {
+        const result = await api('/api/llm/models/test', { method: 'POST', body: JSON.stringify(data) });
+        if (result.success) {
+            toast(`连接正常: ${result.info.model} → ${result.info.response}`, 'success');
+        } else {
+            toast('测试失败: ' + (result.error || ''), 'error');
+        }
+    } catch (e) {
+        toast('测试失败: ' + e.message, 'error');
+    }
+}
+
+async function testBackupModel(index) {
+    toast('测试中...', 'info');
+    try {
+        const result = await api(`/api/llm/models/${index}/test`, { method: 'POST' });
+        if (result.success) {
+            toast(`连接正常: ${result.info.model} → ${result.info.response}`, 'success');
+        } else {
+            toast('测试失败: ' + (result.error || ''), 'error');
+        }
+    } catch (e) {
+        toast('测试失败: ' + e.message, 'error');
+    }
+}
+
+async function deleteBackupModel(index) {
+    if (!confirm('确定删除这个备用模型？')) return;
+    try {
+        await api(`/api/llm/models/${index}`, { method: 'DELETE' });
+        toast('已删除', 'success');
+        await loadBackupModels();
+    } catch (e) {
+        toast('删除失败: ' + e.message, 'error');
     }
 }
 

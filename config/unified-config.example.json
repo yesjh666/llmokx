@@ -10,7 +10,8 @@
     "temperature": 0.3,
     "max_tokens": 2000,
     "timeout": 90,
-    "thinking": false
+    "thinking": false,
+    "backup_models": []
   },
   "forward": {
     "enabled": true,

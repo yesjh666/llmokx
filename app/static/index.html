@@ -127,7 +127,10 @@
                 </div>
             </div>
             <div class="card">
-                <div class="card-header"><span class="card-title">模型配置</span></div>
+                <div class="card-header collapse-header collapsed" onclick="toggleCollapse(this)">
+                    <span class="card-title">模型配置（主模型，点击展开/收起）</span>
+                </div>
+                <div class="collapse-body collapsed">
                 <div class="form-group">
                     <label class="form-label">API提供商</label>
                     <select class="form-select" id="llm-provider">
@@ -183,6 +186,19 @@
                     <button class="btn btn-primary" onclick="saveLLMConfig()">保存配置</button>
                     <button class="btn btn-default" onclick="testLLMConnection()">测试连接</button>
                 </div>
+                </div>
+            </div>
+
+            <!-- 备用模型（多模型故障转移） -->
+            <div class="card">
+                <div class="card-header">
+                    <span class="card-title">备用模型（主模型失败时按顺序自动切换）</span>
+                    <button class="btn btn-sm btn-primary" onclick="showAddModelModal()">+ 添加</button>
+                </div>
+                <div class="info-block">
+                    分析顺序：主模型 → 备用模型(fallback) → 下方备用模型列表。任一成功即用，尝试总数受「最大重试次数」限制。
+                </div>
+                <div id="backup-models-list"></div>
             </div>
             <div class="card">
                 <div class="card-header"><span class="card-title">测试分析</span></div>
@@ -942,9 +958,46 @@
     </div>
 </div>
 
+<!-- 添加/编辑备用模型模态框 -->
+<div class="modal-overlay" id="modal-model" style="display:none;">
+    <div class="modal" style="max-width:560px;">
+        <div class="modal-header">
+            <span class="card-title" id="model-modal-title">添加备用模型</span>
+            <button class="btn btn-sm btn-default" onclick="hideModelModal()">×</button>
+        </div>
+        <div class="modal-body">
+            <div class="form-group">
+                <label class="form-label">名称（备注）</label>
+                <input type="text" class="form-input" id="model-name" placeholder="如：DeepSeek备用">
+            </div>
+            <div class="form-group">
+                <label class="form-label">API Base URL *</label>
+                <input type="text" class="form-input" id="model-api-base" placeholder="https://api.deepseek.com/v1">
+            </div>
+            <div class="form-group">
+                <label class="form-label">API Key <span id="model-key-hint" style="color:#6b7280;font-size:12px;"></span></label>
+                <input type="password" class="form-input" id="model-api-key" placeholder="sk-xxxxxxxxxxxx">
+            </div>
+            <div class="form-group">
+                <label class="form-label">模型 *</label>
+                <input type="text" class="form-input" id="model-model" placeholder="deepseek-chat">
+            </div>
+            <div class="form-group">
+                <label>
+                    <input type="checkbox" id="model-thinking"> 启用思考模式（推理模型）
+                </label>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-default" onclick="hideModelModal()">取消</button>
+            <button class="btn btn-default" onclick="testModelFromModal()">测试</button>
+            <button class="btn btn-primary" onclick="saveModelFromModal()">保存</button>
+        </div>
+    </div>
+</div>
+
 <!-- 纠错学习模态框 -->
-<div class="modal-overlay" id="modal-learn" style="display:none;">
-    <div class="modal" style="max-width:720px;">
+<div class="modal-overlay" id="modal-learn" style="display:none;">    <div class="modal" style="max-width:720px;">
         <div class="modal-header">
             <span class="card-title">纠错学习</span>
             <button class="btn btn-sm btn-default" onclick="hideLearnModal()">×</button>
