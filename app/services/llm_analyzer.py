@@ -111,39 +111,52 @@ class LLMAnalyzer:
                     "temperature": bk_temp,
                 })
 
-        # 最多尝试 max_retries 个模型（至少 1 个）
-        attempts = chain[: max(1, max_retries)]
+        # 故障转移：依次尝试 整条链 的每个模型（主→fallback→backup_models）
+        # max_retries = 单个模型遇到瞬时错误时的重试次数；认证类错误(401/403)直接换下一个模型
+        per_model_retries = max(1, max_retries)
 
         start_time = time.time()
         last_error = None
         llm_content = None
         actual_retries = 0
-        used_model = attempts[0]["label"] if attempts else model
+        used_model = chain[0]["label"] if chain else model
 
-        for attempt, mcfg in enumerate(attempts):
-            try:
-                content = await self._call_llm_api(
-                    prompt, mcfg["model"], mcfg["api_base"], mcfg["api_key"],
-                    mcfg["thinking"], mcfg["temperature"],
-                )
-                if content:
+        for idx, mcfg in enumerate(chain):
+            success_here = False
+            for r in range(per_model_retries):
+                try:
+                    content = await self._call_llm_api(
+                        prompt, mcfg["model"], mcfg["api_base"], mcfg["api_key"],
+                        mcfg["thinking"], mcfg["temperature"],
+                    )
                     llm_content = content
                     used_model = mcfg["label"]
-                    if attempt > 0:
-                        actual_retries = attempt
-                        logger.info(f"LLM第{attempt + 1}个模型成功: {mcfg['label']}")
+                    success_here = True
+                    if idx > 0:
+                        actual_retries = idx
+                        logger.info(f"LLM故障转移成功(第{idx + 1}个模型): {mcfg['label']}")
                     break
-            except Exception as e:
-                last_error = str(e)
-                actual_retries = attempt
-                logger.warning(f"LLM调用失败(第{attempt + 1}个, {mcfg['label']}): {e}")
-                if attempt < len(attempts) - 1:
-                    time.sleep(1)
+                except Exception as e:
+                    last_error = str(e)
+                    actual_retries = idx
+                    err_lower = str(e).lower()
+                    is_auth_err = any(x in err_lower for x in (
+                        "401", "403", "unauthorized", "令牌", "认证", "鉴权", "forbidden",
+                    ))
+                    logger.warning(f"LLM调用失败(模型{idx + 1}/{len(chain)} {mcfg['label']}, 重试{r + 1}): {e}")
+                    if is_auth_err:
+                        logger.info(f"认证/授权类错误，跳到下一个模型: {mcfg['label']}")
+                        break  # 重试无意义，换下一个模型
+                    if r < per_model_retries - 1:
+                        time.sleep(1)
+                    # 否则：当前模型重试耗尽，自然换下一个模型
+            if success_here:
+                break
 
         elapsed = time.time() - start_time
 
         if not llm_content:
-            error_msg = f"LLM调用失败(尝试{len(attempts)}个模型均失败): {last_error}"
+            error_msg = f"LLM调用失败(已尝试全部{len(chain)}个模型): {last_error}"
             log_llm_analysis(
                 text=text, context=context_str, success=False,
                 model=used_model, elapsed=elapsed, error=error_msg,

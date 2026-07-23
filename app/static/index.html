@@ -196,7 +196,7 @@
                     <button class="btn btn-sm btn-primary" onclick="showAddModelModal()">+ 添加</button>
                 </div>
                 <div class="info-block">
-                    分析顺序：主模型 → 备用模型(fallback) → 下方备用模型列表。任一成功即用，尝试总数受「最大重试次数」限制。
+                    分析顺序：主模型 → fallback → 下方备用模型列表，依次尝试直到成功。认证错误(401/403)会立即跳到下一个模型，「最大重试次数」=单个模型遇到瞬时错误的重试次数。
                 </div>
                 <div id="backup-models-list"></div>
             </div>
