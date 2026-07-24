@@ -1481,7 +1481,7 @@ async function checkUpdates() {
 }
 
 async function performUpdate() {
-    if (!confirm('确定执行升级吗？\n\n升级前会自动备份当前版本，config/data/logs/venv 目录会保留。\n升级后需要手动重启服务。')) {
+    if (!confirm('确定执行升级吗？\n\n升级前会自动备份当前版本，config/data/logs/venv 目录会保留。\n升级后将自动重启服务并通知。')) {
         return;
     }
 
@@ -1507,11 +1507,12 @@ async function performUpdate() {
             if (result.new_version) {
                 html += `<small>新版本: ${escapeHtml(result.new_version)}</small><br>`;
             }
-            html += '<br><button class="btn btn-warning" onclick="restartService()">立即重启服务</button>';
             html += '</div>';
             document.getElementById('update-result').innerHTML = html;
-            toast('升级成功！请重启服务', 'success');
+            toast('升级成功！5秒后自动重启服务...', 'success');
             await loadUpdateVersion();
+            // 自动重启：5秒倒计时
+            await autoRestartWithCountdown(result.restart_notify || '');
         } else {
             let html = '<div style="background:rgba(239,68,68,0.08);border:1px solid rgba(239,68,68,0.2);padding:16px;border-radius:6px;border-left:3px solid #f56c6c;">';
             html += '<strong style="color:#f87171;">❌ 升级失败</strong><br>';
@@ -1530,15 +1531,69 @@ async function performUpdate() {
     }
 }
 
-async function restartService() {
+// 自动重启：倒计时 + 发送重启命令 + 轮询恢复
+async function autoRestartWithCountdown(notifyMessage) {
+    const resultDiv = document.getElementById('update-result');
+    // 倒计时
+    for (let i = 5; i > 0; i--) {
+        resultDiv.innerHTML += `<div id="restart-countdown" style="margin-top:8px;color:#fbbf24;font-size:13px;">⏳ ${i}秒后自动重启服务...</div>`;
+        await new Promise(r => setTimeout(r, 1000));
+        const cd = document.getElementById('restart-countdown');
+        if (cd) cd.remove();
+    }
+    // 发送重启命令（带通知消息）
+    try {
+        const result = await api('/api/update/restart', {
+            method: 'POST',
+            body: JSON.stringify({ notify_message: notifyMessage }),
+        });
+        if (result.success) {
+            resultDiv.innerHTML += '<div id="restart-status" style="margin-top:8px;color:#60a5fa;font-size:13px;">🔄 正在重启服务，等待恢复连接...</div>';
+            toast('重启命令已派出，等待服务恢复...', 'info');
+            // 轮询服务恢复
+            await pollServiceRecovery();
+        } else {
+            document.getElementById('restart-status').innerHTML = `<span style="color:#f87171;">重启失败: ${escapeHtml(result.message || '')}</span>`;
+        }
+    } catch (e) {
+        const cd = document.getElementById('restart-status');
+        if (cd) cd.innerHTML = `<span style="color:#f87171;">重启异常: ${escapeHtml(e.message)}</span>`;
+    }
+}
+
+// 轮询服务恢复（最多等 60 秒）
+async function pollServiceRecovery(maxWait = 60) {
+    const statusDiv = document.getElementById('restart-status');
+    for (let i = 0; i < maxWait; i++) {
+        await new Promise(r => setTimeout(r, 2000));
+        try {
+            await fetch('/api/health', { method: 'GET', signal: AbortSignal.timeout(3000) });
+            // 服务恢复
+            if (statusDiv) statusDiv.innerHTML = '<span style="color:#4ade80;">✅ 服务已恢复！通知已自动发送。</span>';
+            toast('服务已恢复，通知已自动发送！', 'success');
+            await loadUpdateVersion();
+            return;
+        } catch (_) {
+            // 继续等待
+        }
+    }
+    if (statusDiv) statusDiv.innerHTML = '<span style="color:#fbbf24;">⚠️ 等待超时，请手动刷新页面检查服务状态。</span>';
+}
+
+async function restartService(notifyMessage) {
     if (!confirm('确定重启服务吗？\n\nWeb界面将短暂不可访问，重启后自动恢复。')) {
         return;
     }
     try {
         toast('正在发送重启命令...', 'info');
-        const result = await api('/api/update/restart', { method: 'POST' });
+        const body = notifyMessage ? { notify_message: notifyMessage } : {};
+        const result = await api('/api/update/restart', {
+            method: 'POST',
+            body: JSON.stringify(body),
+        });
         if (result.success) {
-            toast(result.message || '重启命令已派出', 'success');
+            toast(result.message || '重启命令已派出，等待服务恢复...', 'success');
+            await pollServiceRecovery();
         } else {
             toast('重启失败: ' + (result.message || ''), 'error');
         }
@@ -1579,16 +1634,17 @@ async function loadBackups() {
 }
 
 async function rollbackBackup(name) {
-    if (!confirm(`确定回滚到 ${name} 吗？\n\n回滚后需要重启服务才能生效。`)) return;
+    if (!confirm(`确定回滚到 ${name} 吗？\n\n回滚后将自动重启服务并通知。`)) return;
     try {
         const result = await api('/api/update/rollback', {
             method: 'POST',
             body: JSON.stringify({ backup_name: name }),
         });
         if (result.success) {
-            toast('回滚成功，请重启服务', 'success');
-            document.getElementById('update-result').innerHTML = `<div style="background:rgba(34,197,94,0.08);border:1px solid rgba(34,197,94,0.2);padding:12px;border-radius:6px;">✅ ${escapeHtml(result.message)}<br><button class="btn btn-warning" onclick="restartService()">立即重启服务</button></div>`;
+            document.getElementById('update-result').innerHTML = `<div style="background:rgba(34,197,94,0.08);border:1px solid rgba(34,197,94,0.2);padding:12px;border-radius:6px;">✅ ${escapeHtml(result.message)}</div>`;
+            toast('回滚成功！5秒后自动重启服务...', 'success');
             await loadUpdateVersion();
+            await autoRestartWithCountdown(result.restart_notify || '');
         } else {
             toast('回滚失败: ' + (result.message || ''), 'error');
         }

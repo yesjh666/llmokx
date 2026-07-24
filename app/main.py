@@ -67,8 +67,21 @@ async def startup_event():
     config.load_config()
     logger.info("配置已加载")
 
-    # 启动时自动检查更新（按配置）
+    # 检查是否有升级/回滚后的重启通知待发送
     import asyncio
+    async def _send_restart_notify():
+        try:
+            await asyncio.sleep(3)  # 等待 3 秒让服务完全就绪
+            msg = updater.check_restart_notify()
+            if msg:
+                from app.services import notifier
+                await notifier.notifier.send(msg)
+                logger.info("重启通知已发送")
+        except Exception as e:
+            logger.warning(f"重启通知发送失败: {e}")
+    asyncio.create_task(_send_restart_notify())
+
+    # 启动时自动检查更新（按配置）
     asyncio.create_task(updater.startup_check())
 
     # 启动 Telegram 监听（如果已启用）

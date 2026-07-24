@@ -28,6 +28,10 @@ class RollbackRequest(BaseModel):
     backup_name: str
 
 
+class RestartRequest(BaseModel):
+    notify_message: Optional[str] = ""
+
+
 @router.get("/version")
 async def get_version():
     """获取当前版本"""
@@ -87,28 +91,24 @@ async def perform_update():
     logger.info("收到升级请求，开始执行...")
     result = await updater.perform_update()
 
-    if result.get("success") and config.get_section("update").get("notify_on_update", True):
-        # 通过通知服务推送升级消息
-        try:
-            from app.services import notifier
-            msg = (
-                f"🔄 LLMOKX 升级成功\n\n"
-                f"新版本: {result.get('new_version', updater.get_current_version())}\n"
-                f"方式: {result.get('method', 'release')}\n"
-                f"消息: {result.get('message', '')}\n"
-                f"请确认服务已重启"
-            )
-            await notifier.notifier.send(msg)
-        except Exception as e:
-            logger.warning(f"升级通知推送失败: {e}")
+    # 升级成功后，通知由前端调用 restartService 时通过 flag 文件触发
+    # 这样通知是在服务重启成功后才发送
+    if result.get("success"):
+        new_ver = result.get("new_version", updater.get_current_version())
+        method = result.get("method", "release")
+        result["restart_notify"] = (
+            f"✅ LLMOKX 已升级并重启\n\n"
+            f"版本: {updater.get_current_version()} → {new_ver}\n"
+            f"方式: {method}"
+        )
 
     return result
 
 
 @router.post("/restart")
-async def restart_service():
-    """重启 systemd 服务"""
-    result = updater.restart_service()
+async def restart_service(req: RestartRequest = RestartRequest()):
+    """重启 systemd 服务，可通过 notify_message 让重启后自动发通知"""
+    result = updater.restart_service(notify_message=req.notify_message or "")
     return result
 
 
@@ -124,7 +124,7 @@ async def rollback(req: RollbackRequest):
     result = updater.rollback(req.backup_name)
     if result.get("success"):
         result["rollback_success"] = True
-        result["hint"] = "回滚完成，请调用 /api/update/restart 重启服务"
+        result["restart_notify"] = f"✅ LLMOKX 已回滚到 {req.backup_name} 并重启"
     return result
 
 

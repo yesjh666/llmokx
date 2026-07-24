@@ -515,20 +515,25 @@ async def perform_update(progress_cb: Optional[Callable[[int], None]] = None) ->
 # 重启服务
 # ========================================
 
-def restart_service() -> Dict[str, Any]:
+def restart_service(notify_message: str = "") -> Dict[str, Any]:
     """
     重启 systemd 服务（使用配置的命令）
     默认命令："systemctl restart llmokx"
+    如果传了 notify_message，重启后会自动发送通知
     """
     cmd = _load_update_config().get("restart_command", "systemctl restart llmokx")
     try:
-        # 用 nohup 包装重启命令，避免 systemd 杀掉当前进程后命令未完成
-        # 写一个延迟重启脚本
+        # 重启前写 flag 文件，启动时检测并发送通知
+        if notify_message:
+            flag_path = os.path.join(_BASE_DIR, "data", "_restart_notify.txt")
+            os.makedirs(os.path.dirname(flag_path), exist_ok=True)
+            with open(flag_path, "w", encoding="utf-8") as f:
+                f.write(notify_message)
+
         restart_script = os.path.join(_BASE_DIR, "data", "_restart.sh")
         with open(restart_script, "w") as f:
             f.write("#!/bin/bash\nsleep 1\n" + cmd + "\n")
 
-        # 非阻塞启动
         subprocess.Popen(
             ["bash", restart_script],
             stdout=subprocess.DEVNULL,
@@ -538,6 +543,22 @@ def restart_service() -> Dict[str, Any]:
         return {"success": True, "message": f"重启命令已派出: {cmd}"}
     except Exception as e:
         return {"success": False, "message": f"重启失败: {e}"}
+
+
+def check_restart_notify() -> Optional[str]:
+    """
+    启动时检查是否有待发送的重启通知，有则读取并删除 flag 文件
+    """
+    flag_path = os.path.join(_BASE_DIR, "data", "_restart_notify.txt")
+    try:
+        if os.path.exists(flag_path):
+            with open(flag_path, "r", encoding="utf-8") as f:
+                msg = f.read().strip()
+            os.remove(flag_path)
+            return msg if msg else None
+    except Exception as e:
+        logger.warning(f"读取重启通知flag失败: {e}")
+    return None
 
 
 # ========================================
