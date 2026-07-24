@@ -573,22 +573,14 @@ function switchPipelineTab(tabName) {
 
 // Prompt管理页 规则/示例 Tab 切换
 function switchPromptTab(tabName) {
+    // 按钮状态
     document.querySelectorAll('#page-prompts .pipeline-tab').forEach(t => {
-        t.classList.remove('active');
-        t.style.color = '#606266';
-        t.style.borderBottomColor = 'transparent';
-        t.style.fontWeight = 'normal';
+        t.classList.toggle('active', t.dataset.ptab === tabName);
     });
-    const activeBtn = document.querySelector(`#page-prompts .pipeline-tab[data-ptab="${tabName}"]`);
-    if (activeBtn) {
-        activeBtn.classList.add('active');
-        activeBtn.style.color = '#409eff';
-        activeBtn.style.borderBottomColor = '#409eff';
-        activeBtn.style.fontWeight = 'bold';
-    }
-    document.querySelectorAll('#page-prompts .prompt-tab-content').forEach(c => c.style.display = 'none');
-    const content = document.getElementById('ptab-' + tabName);
-    if (content) content.style.display = 'block';
+    // 内容区显示
+    document.querySelectorAll('#page-prompts .prompt-tab-content').forEach(c => {
+        c.classList.toggle('active', c.id === 'ptab-' + tabName);
+    });
 }
 
 async function loadPipelinePage() {

@@ -636,6 +636,14 @@ hr {
     align-items: start;
 }
 
+/* Prompt管理页 tab 内容区 */
+.prompt-tab-content {
+    display: none;
+}
+.prompt-tab-content.active {
+    display: block;
+}
+
 /* 响应式 */
 @media (max-width: 768px) {
     .sidebar {
