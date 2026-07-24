@@ -102,6 +102,8 @@ async function loadModelStatus(forceRefresh) {
             data = await api('/api/llm/model-status');
         }
         renderModelStatus(data);
+        window._cachedModelStatus = data;
+        updateSummaryConnBadge();
         // 同步更新备用模型列表的状态
         if (typeof loadBackupModels === 'function' && !forceRefresh) loadBackupModels();
     } catch (e) {
@@ -159,10 +161,31 @@ async function loadLLMConfig() {
         if (cfg.api_key_configured) {
             document.getElementById('llm-api-key').placeholder = cfg.api_key_masked || '已配置(输入新值覆盖)';
         }
+        // 更新折叠时的摘要信息
+        const sm = document.getElementById('summary-model');
+        const sb = document.getElementById('summary-base');
+        if (sm) sm.textContent = cfg.model || '未配置';
+        if (sb) sb.textContent = (cfg.api_base || '').replace(/^https?:\/\//, '').split('/')[0] || '未配置';
+        // 更新连接状态徽章
+        updateSummaryConnBadge();
         // 加载备用模型列表
         loadBackupModels();
     } catch (e) {
         toast('加载LLM配置失败: ' + e.message, 'error');
+    }
+}
+
+function updateSummaryConnBadge() {
+    const badge = document.getElementById('summary-conn-badge');
+    if (!badge) return;
+    const status = (window._cachedModelStatus || {}).results || [];
+    const primary = status.find(s => s.role === 'primary');
+    if (primary) {
+        badge.innerHTML = primary.success
+            ? '<span class="badge badge-success">连通</span>'
+            : '<span class="badge badge-danger">失败</span>';
+    } else {
+        badge.innerHTML = '<span class="badge">未测试</span>';
     }
 }
 
@@ -203,6 +226,9 @@ async function testLLMConnection() {
         } else {
             toast('连接测试失败: ' + result.error, 'error');
         }
+        // 测试后刷新模型状态
+        await loadModelStatus(true);
+        updateSummaryConnBadge();
     } catch (e) {
         toast('测试失败: ' + e.message, 'error');
     }

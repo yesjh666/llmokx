@@ -7,6 +7,7 @@ import os
 import re
 import json
 import time
+import asyncio
 import logging
 from typing import Dict, Any, List, Optional
 
@@ -121,6 +122,7 @@ class LLMAnalyzer:
         llm_content = None
         actual_retries = 0
         used_model = chain[0]["label"] if chain else model
+        chain_errors = []   # 每个模型的错误明细
 
         for idx, mcfg in enumerate(chain):
             success_here = False
@@ -149,15 +151,18 @@ class LLMAnalyzer:
                         logger.info(f"认证/授权类错误，跳到下一个模型: {mcfg['label']}")
                         break  # 重试无意义，换下一个模型
                     if r < per_model_retries - 1:
-                        time.sleep(1)
+                        await asyncio.sleep(1)
                     # 否则：当前模型重试耗尽，自然换下一个模型
-            if success_here:
+            if not success_here:
+                chain_errors.append({"model": mcfg["label"], "error": last_error})
+            else:
                 break
 
         elapsed = time.time() - start_time
 
         if not llm_content:
             error_msg = f"LLM调用失败(已尝试全部{len(chain)}个模型): {last_error}"
+            logger.error(f"故障转移全部失败: {chain_errors}")
             log_llm_analysis(
                 text=text, context=context_str, success=False,
                 model=used_model, elapsed=elapsed, error=error_msg,
@@ -169,6 +174,7 @@ class LLMAnalyzer:
                 "raw_response": "",
                 "elapsed": elapsed,
                 "error": error_msg,
+                "chain_errors": chain_errors,
             }
 
         # 解析响应
