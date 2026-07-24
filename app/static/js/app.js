@@ -571,6 +571,26 @@ function switchPipelineTab(tabName) {
     if (content) content.style.display = 'block';
 }
 
+// Prompt管理页 规则/示例 Tab 切换
+function switchPromptTab(tabName) {
+    document.querySelectorAll('#page-prompts .pipeline-tab').forEach(t => {
+        t.classList.remove('active');
+        t.style.color = '#606266';
+        t.style.borderBottomColor = 'transparent';
+        t.style.fontWeight = 'normal';
+    });
+    const activeBtn = document.querySelector(`#page-prompts .pipeline-tab[data-ptab="${tabName}"]`);
+    if (activeBtn) {
+        activeBtn.classList.add('active');
+        activeBtn.style.color = '#409eff';
+        activeBtn.style.borderBottomColor = '#409eff';
+        activeBtn.style.fontWeight = 'bold';
+    }
+    document.querySelectorAll('#page-prompts .prompt-tab-content').forEach(c => c.style.display = 'none');
+    const content = document.getElementById('ptab-' + tabName);
+    if (content) content.style.display = 'block';
+}
+
 async function loadPipelinePage() {
     await Promise.all([
         loadMonitorConfig(),

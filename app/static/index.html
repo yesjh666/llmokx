@@ -224,57 +224,70 @@
                 <h2>📝 Prompt管理</h2>
                 <p>管理LLM分析的Prompt规则和示例</p>
             </div>
-            <div class="stats-grid">
-                <div class="stat-card">
-                    <div class="stat-label">内置规则</div>
-                    <div class="stat-value" id="prompt-rules-count">0</div>
-                </div>
-                <div class="stat-card">
-                    <div class="stat-label">内置示例</div>
-                    <div class="stat-value" id="prompt-examples-count">0</div>
-                </div>
-                <div class="stat-card">
-                    <div class="stat-label">自定义规则</div>
-                    <div class="stat-value" id="prompt-custom-rules-count">0</div>
-                </div>
-                <div class="stat-card">
-                    <div class="stat-label">自定义示例</div>
-                    <div class="stat-value" id="prompt-custom-examples-count">0</div>
-                </div>
-            </div>
-            <div class="card">
-                <div class="card-header">
-                    <span class="card-title">系统提示词</span>
+
+            <!-- 紧凑统计条 -->
+            <div class="card" style="padding:12px 16px;">
+                <div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap;">
+                    <span style="font-size:12px;color:#6b7280;">内置规则 <strong style="color:#e4e4e7;" id="prompt-rules-count">0</strong></span>
+                    <span style="font-size:12px;color:#6b7280;">内置示例 <strong style="color:#e4e4e7;" id="prompt-examples-count">0</strong></span>
+                    <span style="font-size:12px;color:#6b7280;">自定义规则 <strong style="color:#4ade80;" id="prompt-custom-rules-count">0</strong></span>
+                    <span style="font-size:12px;color:#6b7280;">自定义示例 <strong style="color:#4ade80;" id="prompt-custom-examples-count">0</strong></span>
+                    <div style="flex:1;"></div>
                     <button class="btn btn-sm btn-default" onclick="reloadPrompts()">重新加载</button>
                 </div>
-                <textarea class="form-textarea" id="prompt-system" rows="3" readonly style="background:#12141c;border:1px solid #262830;"></textarea>
             </div>
+
+            <!-- 系统提示词（折叠，只读） -->
             <div class="card">
-                <div class="card-header">
-                    <span class="card-title">规则列表</span>
-                    <button class="btn btn-sm btn-primary" onclick="showAddRuleModal()">+ 添加规则</button>
+                <div class="card-header collapse-header collapsed" onclick="toggleCollapse(this)">
+                    <span class="card-title">系统提示词（只读，点击展开）</span>
                 </div>
-                <div style="margin-bottom:20px;">
-                    <h4 style="margin-bottom:10px;color:#9ca3af;">自定义规则</h4>
+                <div class="collapse-body collapsed">
+                    <textarea class="form-textarea" id="prompt-system" rows="4" readonly style="background:#12141c;border:1px solid #262830;"></textarea>
+                </div>
+            </div>
+
+            <!-- 规则 / 示例 Tab 切换 -->
+            <div class="pipeline-tabs" style="display:flex;gap:0;border-bottom:2px solid #262830;margin-bottom:20px;">
+                <button class="pipeline-tab active" data-ptab="rules" onclick="switchPromptTab('rules')">📏 规则管理</button>
+                <button class="pipeline-tab" data-ptab="examples" onclick="switchPromptTab('examples')">💡 示例管理</button>
+            </div>
+
+            <!-- 规则 Tab -->
+            <div class="prompt-tab-content" id="ptab-rules">
+                <div class="card">
+                    <div class="card-header">
+                        <span class="card-title">自定义规则</span>
+                        <button class="btn btn-sm btn-primary" onclick="showAddRuleModal()">+ 添加规则</button>
+                    </div>
                     <div id="custom-rules-list"></div>
                 </div>
-                <div>
-                    <h4 style="margin-bottom:10px;color:#6b7280;">内置规则</h4>
-                    <div id="builtin-rules-list" style="max-height:400px;overflow-y:auto;"></div>
+                <div class="card">
+                    <div class="card-header collapse-header collapsed" onclick="toggleCollapse(this)">
+                        <span class="card-title">内置规则（只读）</span>
+                    </div>
+                    <div class="collapse-body collapsed">
+                        <div id="builtin-rules-list" style="max-height:500px;overflow-y:auto;"></div>
+                    </div>
                 </div>
             </div>
-            <div class="card">
-                <div class="card-header">
-                    <span class="card-title">示例列表</span>
-                    <button class="btn btn-sm btn-primary" onclick="showAddExampleModal()">+ 添加示例</button>
-                </div>
-                <div style="margin-bottom:20px;">
-                    <h4 style="margin-bottom:10px;color:#9ca3af;">自定义示例</h4>
+
+            <!-- 示例 Tab -->
+            <div class="prompt-tab-content" id="ptab-examples" style="display:none;">
+                <div class="card">
+                    <div class="card-header">
+                        <span class="card-title">自定义示例</span>
+                        <button class="btn btn-sm btn-primary" onclick="showAddExampleModal()">+ 添加示例</button>
+                    </div>
                     <div id="custom-examples-list"></div>
                 </div>
-                <div>
-                    <h4 style="margin-bottom:10px;color:#6b7280;">内置示例</h4>
-                    <div id="builtin-examples-list" style="max-height:500px;overflow-y:auto;"></div>
+                <div class="card">
+                    <div class="card-header collapse-header collapsed" onclick="toggleCollapse(this)">
+                        <span class="card-title">内置示例（只读）</span>
+                    </div>
+                    <div class="collapse-body collapsed">
+                        <div id="builtin-examples-list" style="max-height:500px;overflow-y:auto;"></div>
+                    </div>
                 </div>
             </div>
         </div>
