@@ -101,6 +101,15 @@
             </div>
             <div class="card">
                 <div class="card-header">
+                    <span class="card-title">🔗 模型连接状态</span>
+                    <button class="btn btn-sm btn-default" onclick="loadModelStatus(true)">刷新</button>
+                </div>
+                <div id="model-status-list">
+                    <div class="empty-state" style="padding:16px;"><div class="empty-icon">🔗</div><div>点击刷新测试模型连接</div></div>
+                </div>
+            </div>
+            <div class="card">
+                <div class="card-header">
                     <span class="card-title">快速操作</span>
                 </div>
                 <div style="display:flex;gap:10px;flex-wrap:wrap;">

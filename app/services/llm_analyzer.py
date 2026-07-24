@@ -24,6 +24,7 @@ class LLMAnalyzer:
 
     def __init__(self):
         self.config = config.get_section("llm_analysis")
+        self._model_status: Optional[dict] = None
 
     def _refresh_config(self):
         """刷新配置"""
@@ -208,6 +209,10 @@ class LLMAnalyzer:
         temperature: float = 0.3,
     ) -> Optional[str]:
         """调用大模型API（OpenAI兼容接口）- 使用传入的连接参数"""
+        model = (model or "").strip()
+        api_base = (api_base or "").strip()
+        api_key = (api_key or "").strip()
+
         timeout = self.config.get("timeout", 90)
         max_tokens = self.config.get("max_tokens", 800)
         system_prompt = prompt_manager.load_prompts().get("system_prompt", "")
@@ -327,6 +332,10 @@ class LLMAnalyzer:
         self, api_base: str, api_key: str, model: str, thinking: bool
     ) -> Dict[str, Any]:
         """测试单个模型配置的连通性（发送一条简短消息）"""
+        api_base = (api_base or "").strip()
+        api_key = (api_key or "").strip()
+        model = (model or "").strip()
+
         if not api_key:
             return {"success": False, "error": "API Key未配置"}
         if not api_base:
@@ -404,6 +413,66 @@ class LLMAnalyzer:
         """测试任意模型配置（用于测试备用模型）"""
         self._refresh_config()
         return await self._test_model(api_base, api_key, model, thinking)
+
+    async def test_all_models(self) -> Dict[str, Any]:
+        """测试所有模型连接状态（主模型 + fallback + backup_models）"""
+        self._refresh_config()
+        results = []
+
+        model = (self.config.get("model", "") or "").strip()
+        api_base = (self.config.get("api_base", "") or "").strip()
+        api_key = (self.config.get("api_key", "") or "").strip()
+        thinking = self.config.get("thinking", False)
+
+        primary = await self._test_model(api_base, api_key, model, thinking)
+        results.append({
+            "role": "primary",
+            "label": model or "主模型",
+            "model": model,
+            "api_base": api_base,
+            "success": primary.get("success", False),
+            "error": primary.get("error", ""),
+            "info": primary.get("info", {}),
+        })
+
+        fallback_model = (self.config.get("fallback_model", "") or "").strip()
+        if fallback_model and fallback_model != model:
+            fb = await self._test_model(api_base, api_key, fallback_model, thinking)
+            results.append({
+                "role": "fallback",
+                "label": fallback_model,
+                "model": fallback_model,
+                "api_base": api_base,
+                "success": fb.get("success", False),
+                "error": fb.get("error", ""),
+                "info": fb.get("info", {}),
+            })
+
+        for bk in (self.config.get("backup_models") or []):
+            bk_model = (bk.get("model", "") or "").strip()
+            bk_base = (bk.get("api_base", "") or "").strip()
+            bk_key = (bk.get("api_key", "") or "").strip() or api_key
+            bk_thinking = bk.get("thinking", thinking)
+            if not bk_model or not bk_base:
+                continue
+            bk_result = await self._test_model(bk_base, bk_key, bk_model, bk_thinking)
+            results.append({
+                "role": "backup",
+                "label": bk.get("name") or bk_model,
+                "model": bk_model,
+                "api_base": bk_base,
+                "success": bk_result.get("success", False),
+                "error": bk_result.get("error", ""),
+                "info": bk_result.get("info", {}),
+            })
+
+        self._model_status = {
+            "results": results,
+            "tested_at": time.strftime("%Y-%m-%d %H:%M:%S"),
+            "total": len(results),
+            "ok_count": sum(1 for r in results if r["success"]),
+        }
+        return self._model_status
 
 
 # 全局单例

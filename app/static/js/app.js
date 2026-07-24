@@ -82,9 +82,56 @@ async function loadDashboard() {
 
         document.getElementById('stat-uptime').textContent = formatUptime(status.uptime);
         document.getElementById('stat-python').textContent = status.python_version;
+
+        // 加载模型连接状态
+        loadModelStatus(false);
     } catch (e) {
         toast('加载状态失败: ' + e.message, 'error');
     }
+}
+
+async function loadModelStatus(forceRefresh) {
+    const el = document.getElementById('model-status-list');
+    if (!el) return;
+    try {
+        let data;
+        if (forceRefresh) {
+            el.innerHTML = '<div style="color:#6b7280;padding:16px;">⏳ 测试中...</div>';
+            data = await api('/api/llm/model-status', { method: 'POST' });
+        } else {
+            data = await api('/api/llm/model-status');
+        }
+        renderModelStatus(data);
+        // 同步更新备用模型列表的状态
+        if (typeof loadBackupModels === 'function' && !forceRefresh) loadBackupModels();
+    } catch (e) {
+        el.innerHTML = `<div style="color:#f87171;padding:12px;">加载失败: ${e.message}</div>`;
+    }
+}
+
+function renderModelStatus(data) {
+    const el = document.getElementById('model-status-list');
+    if (!el) return;
+    const results = data.results || [];
+    if (!results.length) {
+        el.innerHTML = '<div class="empty-state" style="padding:16px;"><div class="empty-icon">🔗</div><div>暂无模型数据</div></div>';
+        return;
+    }
+    const roleLabels = { primary: '主模型', fallback: '备用', backup: '后备' };
+    let html = `<div style="font-size:12px;color:#6b7280;margin-bottom:8px;">测试时间: ${data.tested_at || '未测试'} | 成功 ${data.ok_count}/${data.total}</div>`;
+    results.forEach(r => {
+        const icon = r.success ? '<span class="badge badge-success">✅ 连通</span>' : '<span class="badge badge-danger">❌ 失败</span>';
+        const roleTag = `<span class="badge badge-info">${roleLabels[r.role] || r.role}</span>`;
+        html += `
+            <div style="border:1px solid #262830;border-radius:6px;padding:10px;margin-bottom:8px;">
+                <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:4px;">
+                    <div><strong>${escapeHtml(r.label)}</strong> <span style="color:#6b7280;font-size:12px;">${escapeHtml(r.model)}</span></div>
+                    <div>${roleTag} ${icon}</div>
+                </div>
+                ${!r.success && r.error ? `<div style="font-size:12px;color:#f87171;margin-top:6px;word-break:break-all;">${escapeHtml(r.error.substring(0, 120))}</div>` : ''}
+            </div>`;
+    });
+    el.innerHTML = html;
 }
 
 function formatUptime(seconds) {
@@ -189,6 +236,11 @@ let _editingModelIndex = null;   // null=新增, 数字=编辑
 async function loadBackupModels() {
     try {
         const data = await api('/api/llm/models');
+        // 获取缓存的连接状态用于显示徽章
+        try {
+            const st = await api('/api/llm/model-status');
+            window._cachedModelStatus = st;
+        } catch (_) {}
         renderBackupModels(data.models || []);
     } catch (e) {
         toast('加载备用模型失败: ' + e.message, 'error');
@@ -202,6 +254,8 @@ function renderBackupModels(models) {
         el.innerHTML = '<div style="text-align:center;color:#6b7280;padding:20px;">暂无备用模型。主模型失败后将无后备。</div>';
         return;
     }
+    // 获取缓存的连接状态
+    const modelStatus = (window._cachedModelStatus || {}).results || [];
     el.innerHTML = models.map((m, i) => {
         const keyTag = m.api_key_configured
             ? '<span class="badge badge-success">Key已配</span>'
@@ -210,6 +264,14 @@ function renderBackupModels(models) {
         const tempTag = (m.temperature !== null && m.temperature !== undefined)
             ? `<span class="badge badge-info">T=${m.temperature}</span>`
             : '<span class="badge">T=全局</span>';
+        // 查找连接状态
+        const st = modelStatus.find(s => s.role === 'backup' && s.model === m.model && s.api_base === m.api_base);
+        let connTag = '';
+        if (st) {
+            connTag = st.success
+                ? '<span class="badge badge-success">✅ 连通</span>'
+                : '<span class="badge badge-danger">❌ 失败</span>';
+        }
         return `
             <div style="border:1px solid #262830;border-radius:8px;padding:12px;margin-bottom:10px;">
                 <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;flex-wrap:wrap;gap:6px;">
@@ -217,7 +279,7 @@ function renderBackupModels(models) {
                         <strong>${escapeHtml(m.name || m.model)}</strong>
                         <span style="color:#6b7280;font-size:12px;margin-left:6px;">#${i + 1} 顺序</span>
                     </div>
-                    <div style="display:flex;gap:4px;">${keyTag} ${thinkTag} ${tempTag}</div>
+                    <div style="display:flex;gap:4px;">${connTag} ${keyTag} ${thinkTag} ${tempTag}</div>
                 </div>
                 <div style="font-size:13px;color:#a1a1aa;">
                     <div>模型: <strong style="color:#e4e4e7;">${escapeHtml(m.model)}</strong></div>

@@ -139,6 +139,22 @@ async def test_connection():
     return result
 
 
+@router.get("/model-status")
+async def get_model_status():
+    """获取模型连接状态（从缓存读取）"""
+    status = getattr(llm_analyzer.analyzer, '_model_status', None)
+    if not status:
+        return {"results": [], "tested_at": None, "total": 0, "ok_count": 0}
+    return status
+
+
+@router.post("/model-status")
+async def refresh_model_status():
+    """重新测试所有模型连接"""
+    result = await llm_analyzer.analyzer.test_all_models()
+    return result
+
+
 @router.get("/prompts")
 async def get_prompts():
     """获取prompt配置"""

@@ -63,23 +63,42 @@ async def startup_event():
     logger.info("=" * 50)
     logger.info(f"LLMOKX 交易工具 v{_APP_VERSION} 启动中...")
     logger.info("=" * 50)
-    # 加载配置
-    config.load_config()
-    logger.info("配置已加载")
+    # 升级/回滚后强制重新读取磁盘配置（避免缓存陈旧）
+    config.reload_config()
+    logger.info("配置已加载(强制刷新)")
 
-    # 检查是否有升级/回滚后的重启通知待发送
+    # 启动后：测试所有模型连接 + 发送 Telegram 通知
     import asyncio
-    async def _send_restart_notify():
+    async def _startup_model_check():
         try:
-            await asyncio.sleep(3)  # 等待 3 秒让服务完全就绪
-            msg = updater.check_restart_notify()
-            if msg:
-                from app.services import notifier
-                await notifier.notifier.send(msg)
-                logger.info("重启通知已发送")
+            await asyncio.sleep(5)
+            from app.services import llm_analyzer, notifier as notifier_mod
+            status = await llm_analyzer.analyzer.test_all_models()
+            ok = status["ok_count"]
+            total = status["total"]
+            logger.info(f"模型连接测试完成: {ok}/{total} 成功")
+
+            lines = []
+            for r in status["results"]:
+                icon = "\u2705" if r["success"] else "\u274c"
+                lines.append(f"{icon} {r['label']}")
+                if not r["success"] and r.get("error"):
+                    lines.append(f"    {r['error'][:80]}")
+
+            restart_msg = updater.check_restart_notify()
+            if restart_msg:
+                header = restart_msg
+            else:
+                header = f"\U0001F680 LLMOKX v{_APP_VERSION} \u5df2\u542f\u52a8"
+
+            msg = f"{header}\n\n\U0001F4CA \u6a21\u578b\u8fde\u63a5\u72b6\u6001 ({ok}/{total}):\n" + "\n".join(lines)
+
+            await notifier_mod.notifier.send(msg)
+            logger.info("启动通知已发送")
         except Exception as e:
-            logger.warning(f"重启通知发送失败: {e}")
-    asyncio.create_task(_send_restart_notify())
+            logger.warning(f"启动模型测试/通知失败: {e}")
+
+    asyncio.create_task(_startup_model_check())
 
     # 启动时自动检查更新（按配置）
     asyncio.create_task(updater.startup_check())
