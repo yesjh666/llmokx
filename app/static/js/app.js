@@ -1369,28 +1369,24 @@ async function loadUpdateVersion() {
         const data = await api('/api/update/version');
         const container = document.getElementById('update-version-display');
 
-        let html = `
-        <div class="stats-grid">
-            <div class="stat-card">
-                <div class="stat-label">当前版本</div>
-                <div class="stat-value">${escapeHtml(data.current_version || '0.0.0')}</div>
-            </div>
-            <div class="stat-card">
-                <div class="stat-label">升级方式</div>
-                <div class="stat-value" style="font-size:18px;">${data.method === 'git' ? 'Git Pull' : 'GitHub Releases'}</div>
-            </div>
-            <div class="stat-card">
-                <div class="stat-label">自动升级</div>
-                <div class="stat-value">${data.update_enabled ? '<span style="color:#4ade80;">已启用</span>' : '<span style="color:#f87171;">已禁用</span>'}</div>
-            </div>
-        </div>`;
-        container.innerHTML = html;
+        const autoBadge = data.update_enabled
+            ? '<span class="badge badge-success">自动升级开</span>'
+            : '<span class="badge badge-danger">自动升级关</span>';
+        const methodBadge = data.method === 'git'
+            ? '<span class="badge badge-info">Git Pull</span>'
+            : '<span class="badge badge-info">GitHub Releases</span>';
 
-        // 同时加载配置
+        container.innerHTML = `
+            <span style="font-size:12px;color:#6b7280;">当前版本 <strong style="color:#e4e4e7;">${escapeHtml(data.current_version || '0.0.0')}</strong></span>
+            ${methodBadge}
+            ${autoBadge}
+        `;
+
+        // 同时加载配置和备份
         await loadUpdateConfig();
         await loadBackups();
     } catch (e) {
-        document.getElementById('update-version-display').innerHTML = `<div style="color:#f87171;">加载失败: ${e.message}</div>`;
+        document.getElementById('update-version-display').innerHTML = `<span style="color:#f87171;">加载失败: ${e.message}</span>`;
     }
 }
 

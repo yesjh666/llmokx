@@ -628,6 +628,14 @@ hr {
     border-color: rgba(34, 197, 94, 0.2);
 }
 
+/* 两列布局 */
+.grid-2 {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+    align-items: start;
+}
+
 /* 响应式 */
 @media (max-width: 768px) {
     .sidebar {
@@ -644,6 +652,9 @@ hr {
         padding: 16px;
     }
     .stats-grid {
+        grid-template-columns: 1fr;
+    }
+    .grid-2 {
         grid-template-columns: 1fr;
     }
     .form-row {
