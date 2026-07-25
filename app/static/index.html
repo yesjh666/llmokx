@@ -1054,6 +1054,14 @@
             </div>
             <div class="form-group">
                 <label class="form-label">✅ 正确结果（请修改为正确的JSON）*</label>
+                <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px;">
+                    <button class="btn btn-sm btn-default" onclick="fillLearnTemplate('chat')">💬 闲聊</button>
+                    <button class="btn btn-sm btn-default" onclick="fillLearnTemplate('open_position')">📈 开仓</button>
+                    <button class="btn btn-sm btn-default" onclick="fillLearnTemplate('close_position')">📉 平仓</button>
+                    <button class="btn btn-sm btn-default" onclick="fillLearnTemplate('cancel_orders')">❌ 撤单</button>
+                    <button class="btn btn-sm btn-default" onclick="fillLearnTemplate('modify_tp')">🎯 修改止盈</button>
+                    <button class="btn btn-sm btn-default" onclick="fillLearnTemplate('modify_sl')">🛡️ 修改止损</button>
+                </div>
                 <textarea class="form-textarea" id="learn-correct" rows="7" placeholder='[{"intent":"open_position",...}]'></textarea>
             </div>
             <div class="form-group">

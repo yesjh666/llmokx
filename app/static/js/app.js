@@ -1969,6 +1969,21 @@ function hideLearnModal() {
     _currentLearnId = null;
 }
 
+const _LEARN_TEMPLATES = {
+    chat: [{ intent: "chat", symbol: "", direction: "", confidence: 0.95 }],
+    open_position: [{ intent: "open_position", symbol: "BTCUSDT", direction: "long", entry_price: 0, confidence: 0.9 }],
+    close_position: [{ intent: "close_position", symbol: "BTCUSDT", direction: "long", exit_price: 0, confidence: 0.9 }],
+    cancel_orders: [{ intent: "cancel_orders", symbol: "BTCUSDT", confidence: 0.9 }],
+    modify_tp: [{ intent: "modify_tp", symbol: "BTCUSDT", new_tp: 0, confidence: 0.9 }],
+    modify_sl: [{ intent: "modify_sl", symbol: "BTCUSDT", new_sl: 0, confidence: 0.9 }],
+};
+
+function fillLearnTemplate(key) {
+    const tpl = _LEARN_TEMPLATES[key];
+    if (!tpl) return;
+    document.getElementById('learn-correct').value = JSON.stringify(tpl, null, 2);
+}
+
 async function submitLearn() {
     if (!_currentLearnId) return;
     const correctStr = document.getElementById('learn-correct').value.trim();
