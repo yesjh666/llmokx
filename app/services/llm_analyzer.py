@@ -7,7 +7,10 @@ import os
 import re
 import json
 import time
+import hmac
+import base64
 import asyncio
+import hashlib
 import logging
 from typing import Dict, Any, List, Optional
 
@@ -18,6 +21,64 @@ from app.services import prompt_manager
 from app.core.logging_config import get_logger, log_llm_analysis
 
 logger = get_logger("llm_analysis")
+
+
+# ==================== GLM (智谱AI) JWT Token 自动管理 ====================
+
+_glm_token_cache: Dict[str, tuple] = {}  # {raw_key: (jwt_token, exp_timestamp)}
+
+
+def _is_glm_api(api_base: str) -> bool:
+    """判断是否为 GLM (智谱AI) API"""
+    b = (api_base or "").lower()
+    return any(x in b for x in ("bigmodel", "zhipu", "chatglm"))
+
+
+def _get_glm_token(api_key: str) -> str:
+    """
+    将 GLM 的 {id}.{secret} 格式密钥转为 JWT token。
+    JWT 有效期 1 小时，提前 5 分钟刷新。
+    如果不是 GLM 格式则原样返回。
+    """
+    if not api_key or "." not in api_key:
+        return api_key
+
+    cached = _glm_token_cache.get(api_key)
+    if cached:
+        token, exp = cached
+        if time.time() < exp - 300:
+            return token
+
+    try:
+        key_id, secret = api_key.split(".", 1)
+    except ValueError:
+        return api_key
+
+    def _b64url(data: bytes) -> str:
+        return base64.urlsafe_b64encode(data).rstrip(b"=").decode()
+
+    now = int(time.time())
+    exp = now + 3600
+    header = _b64url(json.dumps({"alg": "HS256", "sign_type": "SIGN"}).encode())
+    payload = _b64url(json.dumps({
+        "api_key": key_id,
+        "exp": exp,
+        "timestamp": str(now),
+    }).encode())
+    msg = f"{header}.{payload}"
+    sig = hmac.new(secret.encode(), msg.encode(), hashlib.sha256).digest()
+    token = f"{msg}.{_b64url(sig)}"
+
+    _glm_token_cache[api_key] = (token, exp)
+    logger.info(f"GLM JWT token 已刷新，有效期至 {time.strftime('%H:%M:%S', time.localtime(exp))}")
+    return token
+
+
+def _get_auth_token(api_key: str, api_base: str) -> str:
+    """根据 API 类型返回认证 token（GLM 自动转 JWT）"""
+    if _is_glm_api(api_base):
+        return _get_glm_token(api_key)
+    return api_key
 
 
 class LLMAnalyzer:
@@ -225,9 +286,10 @@ class LLMAnalyzer:
         if not api_key:
             raise ValueError("API Key未配置，请在设置中填写")
 
+        auth_token = _get_auth_token(api_key, api_base)
         url = f"{api_base.rstrip('/')}/chat/completions"
         headers = {
-            "Authorization": f"Bearer {api_key}",
+            "Authorization": f"Bearer {auth_token}",
             "Content-Type": "application/json",
         }
         body = {
@@ -348,9 +410,10 @@ class LLMAnalyzer:
         if not model:
             return {"success": False, "error": "模型未配置"}
 
+        auth_token = _get_auth_token(api_key, api_base)
         url = f"{api_base.rstrip('/')}/chat/completions"
         headers = {
-            "Authorization": f"Bearer {api_key}",
+            "Authorization": f"Bearer {auth_token}",
             "Content-Type": "application/json",
         }
         body = {
