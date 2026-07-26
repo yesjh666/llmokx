@@ -3,9 +3,11 @@
 消息处理管道 - 串联 监听 → LLM分析 → 转发 → 通知
 """
 import time
+import re
 import logging
 import asyncio
 import hashlib
+import unicodedata
 from typing import Dict, Any, Optional
 from collections import OrderedDict
 
@@ -18,6 +20,21 @@ from app.services.telegram_monitor import monitor
 from app.services import analysis_history
 
 logger = get_logger("app")
+
+
+def _normalize_text(text: str) -> str:
+    """归一化文本用于去重/缓存key（消除跨群转发格式差异）"""
+    # Unicode NFKC: 全角→半角, smart quotes→ASCII, NBSP→space
+    text = unicodedata.normalize("NFKC", text or "")
+    # 统一换行
+    text = text.replace("\r\n", "\n").replace("\r", "\n")
+    # 折叠连续空白（空格、制表符）为单个空格
+    text = re.sub(r"[ \t]+", " ", text)
+    # 每行首尾去空白
+    text = "\n".join(line.strip() for line in text.split("\n"))
+    # 移除零宽字符 / BOM
+    text = re.sub(r"[\u200b\u200c\u200d\u2060\ufeff]", "", text)
+    return text.strip().lower()
 
 
 class MessagePipeline:
@@ -49,7 +66,7 @@ class MessagePipeline:
 
     def _get_cache_key(self, text: str) -> str:
         """生成缓存 key"""
-        return hashlib.md5(text.strip().lower().encode()).hexdigest()
+        return hashlib.md5(_normalize_text(text).encode()).hexdigest()
 
     def _is_duplicate(self, text: str, source_chat_id: str) -> bool:
         """检查是否为重复消息"""
@@ -58,7 +75,7 @@ class MessagePipeline:
         if ttl <= 0:
             return False
 
-        key = hashlib.md5(text.strip().lower().encode()).hexdigest()
+        key = hashlib.md5(_normalize_text(text).encode()).hexdigest()
         now = time.time()
 
         expired = [k for k, ts in self._msg_dedup_cache.items() if now - ts > ttl]

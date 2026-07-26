@@ -146,15 +146,14 @@ class LLMAnalyzer:
                     is_auth_err = any(x in err_lower for x in (
                         "401", "403", "unauthorized", "令牌", "认证", "鉴权", "forbidden",
                     ))
-                    logger.warning(f"LLM调用失败(模型{idx + 1}/{len(chain)} {mcfg['label']}, 重试{r + 1}): {e}")
-                    if is_auth_err:
-                        logger.info(f"认证/授权类错误，跳到下一个模型: {mcfg['label']}")
-                        break  # 重试无意义，换下一个模型
+                    logger.warning(f"LLM调用失败(模型{idx + 1}/{len(chain)} {mcfg['label']}, 重试{r + 1}/{per_model_retries}): {e}")
+                    # 认证类错误也重试（可能是瞬时token刷新/限流），重试耗尽才换下一个模型
                     if r < per_model_retries - 1:
-                        await asyncio.sleep(1)
-                    # 否则：当前模型重试耗尽，自然换下一个模型
+                        await asyncio.sleep(1 if not is_auth_err else 2)
             if not success_here:
                 chain_errors.append({"model": mcfg["label"], "error": last_error})
+                if idx < len(chain) - 1:
+                    logger.info(f"模型 {mcfg['label']} 重试耗尽，切换到下一个模型")
             else:
                 break
 
