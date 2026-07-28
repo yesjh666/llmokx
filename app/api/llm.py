@@ -128,6 +128,9 @@ async def update_config(req: UpdateConfigRequest):
     for k in ("api_key", "api_base", "model", "fallback_model"):
         if isinstance(data.get(k), str):
             data[k] = data[k].strip()
+    # 清除 GLM JWT 缓存，下次调用自动用新 key 生成 token
+    if "api_key" in data or "api_base" in data:
+        llm_analyzer.clear_glm_token_cache()
     success = config.update_section("llm_analysis", data)
     return {"success": success, "message": "配置已更新" if success else "更新失败"}
 

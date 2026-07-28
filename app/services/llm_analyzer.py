@@ -25,7 +25,7 @@ logger = get_logger("llm_analysis")
 
 # ==================== GLM (智谱AI) JWT Token 自动管理 ====================
 
-_glm_token_cache: Dict[str, tuple] = {}  # {raw_key: (jwt_token, exp_timestamp)}
+_glm_token_cache: Dict[str, tuple] = {}  # {raw_key: (jwt_token, exp_timestamp_ms)}
 
 
 def _is_glm_api(api_base: str) -> bool:
@@ -34,19 +34,30 @@ def _is_glm_api(api_base: str) -> bool:
     return any(x in b for x in ("bigmodel", "zhipu", "chatglm"))
 
 
+def clear_glm_token_cache():
+    """清除 JWT token 缓存（配置变更时调用）"""
+    _glm_token_cache.clear()
+
+
 def _get_glm_token(api_key: str) -> str:
     """
     将 GLM 的 {id}.{secret} 格式密钥转为 JWT token。
     JWT 有效期 1 小时，提前 5 分钟刷新。
     如果不是 GLM 格式则原样返回。
+
+    注意：exp 和 timestamp 必须用毫秒（与官方 zhipuai SDK 一致），
+    否则 GLM 会判定 token 已过期返回 401。
     """
     if not api_key or "." not in api_key:
         return api_key
 
+    now_ms = int(round(time.time() * 1000))
+    exp_ms = now_ms + 3600 * 1000  # 1小时后（毫秒）
+
     cached = _glm_token_cache.get(api_key)
     if cached:
-        token, exp = cached
-        if time.time() < exp - 300:
+        token, cached_exp = cached
+        if now_ms < cached_exp - 300 * 1000:  # 提前5分钟刷新
             return token
 
     try:
@@ -57,20 +68,18 @@ def _get_glm_token(api_key: str) -> str:
     def _b64url(data: bytes) -> str:
         return base64.urlsafe_b64encode(data).rstrip(b"=").decode()
 
-    now = int(time.time())
-    exp = now + 3600
     header = _b64url(json.dumps({"alg": "HS256", "sign_type": "SIGN"}).encode())
     payload = _b64url(json.dumps({
         "api_key": key_id,
-        "exp": exp,
-        "timestamp": str(now),
+        "exp": exp_ms,
+        "timestamp": str(now_ms),
     }).encode())
     msg = f"{header}.{payload}"
     sig = hmac.new(secret.encode(), msg.encode(), hashlib.sha256).digest()
     token = f"{msg}.{_b64url(sig)}"
 
-    _glm_token_cache[api_key] = (token, exp)
-    logger.info(f"GLM JWT token 已刷新，有效期至 {time.strftime('%H:%M:%S', time.localtime(exp))}")
+    _glm_token_cache[api_key] = (token, exp_ms)
+    logger.info(f"GLM JWT token 已刷新，有效期至 {time.strftime('%H:%M:%S', time.localtime(exp_ms / 1000))}")
     return token
 
 
