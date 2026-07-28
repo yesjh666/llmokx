@@ -23,17 +23,19 @@ logger = get_logger("app")
 
 
 def _normalize_text(text: str) -> str:
-    """归一化文本用于去重/缓存key（消除跨群转发格式差异）"""
+    """
+    归一化文本用于去重/缓存key。
+    激进策略：只保留字母数字和CJK汉字，移除emoji/特殊符号/标点/换行差异。
+    这样「🚀BTC多 65000\n🎯TP:68000」和「BTC多 65000 TP 68000」会归一化为同一值。
+    """
     # Unicode NFKC: 全角→半角, smart quotes→ASCII, NBSP→space
     text = unicodedata.normalize("NFKC", text or "")
-    # 统一换行
-    text = text.replace("\r\n", "\n").replace("\r", "\n")
-    # 折叠连续空白（空格、制表符）为单个空格
-    text = re.sub(r"[ \t]+", " ", text)
-    # 每行首尾去空白
-    text = "\n".join(line.strip() for line in text.split("\n"))
     # 移除零宽字符 / BOM
     text = re.sub(r"[\u200b\u200c\u200d\u2060\ufeff]", "", text)
+    # 只保留字母数字和CJK汉字，其余替换为空格（emoji/标点/特殊符号全部移除）
+    text = re.sub(r"[^\w\u4e00-\u9fff]", " ", text)
+    # 折叠所有空白为单个空格
+    text = re.sub(r"\s+", " ", text)
     return text.strip().lower()
 
 
@@ -75,7 +77,8 @@ class MessagePipeline:
         if ttl <= 0:
             return False
 
-        key = hashlib.md5(_normalize_text(text).encode()).hexdigest()
+        normalized = _normalize_text(text)
+        key = hashlib.md5(normalized.encode()).hexdigest()
         now = time.time()
 
         expired = [k for k, ts in self._msg_dedup_cache.items() if now - ts > ttl]
@@ -84,11 +87,13 @@ class MessagePipeline:
 
         if key in self._msg_dedup_cache:
             self._msg_dedup_cache.move_to_end(key)
+            logger.info(f"[去重] 命中重复消息 (chat={source_chat_id}): 「{normalized[:60]}」")
             return True
 
         self._msg_dedup_cache[key] = now
         while len(self._msg_dedup_cache) > self.DEDUP_MAX:
             self._msg_dedup_cache.popitem(last=False)
+        logger.debug(f"[去重] 新消息入库 (chat={source_chat_id}): 「{normalized[:60]}」")
         return False
 
     def _is_intent_duplicate(self, intent: str, symbol: str) -> bool:
