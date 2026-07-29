@@ -256,13 +256,17 @@
                 </div>
             </div>
 
-            <!-- 系统提示词（折叠，只读） -->
+            <!-- 系统提示词（可编辑） -->
             <div class="card">
                 <div class="card-header collapse-header collapsed" onclick="toggleCollapse(this)">
-                    <span class="card-title">系统提示词（只读，点击展开）</span>
+                    <span class="card-title">系统提示词（点击展开编辑）</span>
                 </div>
                 <div class="collapse-body collapsed">
-                    <textarea class="form-textarea" id="prompt-system" rows="4" readonly style="background:#12141c;border:1px solid #262830;"></textarea>
+                    <textarea class="form-textarea" id="prompt-system" rows="8" style="background:#12141c;border:1px solid #262830;"></textarea>
+                    <div style="margin-top:8px;display:flex;gap:8px;">
+                        <button class="btn btn-sm btn-primary" onclick="saveSystemPrompt()">保存系统提示词</button>
+                        <button class="btn btn-sm btn-default" onclick="reloadPrompts()">重置（从文件重新加载）</button>
+                    </div>
                 </div>
             </div>
 

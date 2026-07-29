@@ -629,6 +629,20 @@ async function reloadPrompts() {
     }
 }
 
+async function saveSystemPrompt() {
+    const text = document.getElementById('prompt-system').value.trim();
+    if (!text) { toast('系统提示词不能为空', 'warning'); return; }
+    try {
+        await api('/api/llm/prompts/system', {
+            method: 'PUT',
+            body: JSON.stringify({ system_prompt: text }),
+        });
+        toast('系统提示词已保存', 'success');
+    } catch (e) {
+        toast('保存失败: ' + e.message, 'error');
+    }
+}
+
 // ==================== 消息处理（合并页面） ====================
 function toggleCollapse(headerEl) {
     const body = headerEl.nextElementSibling;
