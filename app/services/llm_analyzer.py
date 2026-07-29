@@ -86,7 +86,12 @@ def _get_glm_token(api_key: str) -> str:
 def _get_auth_token(api_key: str, api_base: str) -> str:
     """根据 API 类型返回认证 token（GLM 自动转 JWT）"""
     if _is_glm_api(api_base):
-        return _get_glm_token(api_key)
+        token = _get_glm_token(api_key)
+        if token != api_key:
+            logger.debug(f"GLM JWT 已生成: raw_key长度={len(api_key)}, token长度={len(token)}")
+        else:
+            logger.debug(f"GLM 原始key直传(无dot): key长度={len(api_key)}")
+        return token
     return api_key
 
 
@@ -319,6 +324,15 @@ class LLMAnalyzer:
         async with httpx.AsyncClient(timeout=timeout) as client:
             resp = await client.post(url, headers=headers, json=body)
 
+        # GLM 401 自动恢复：清除 JWT 缓存 → 重新生成 token → 重试一次
+        if resp.status_code in (401, 403) and _is_glm_api(api_base):
+            logger.info(f"GLM 返回 {resp.status_code}，清除JWT缓存并重新生成token重试")
+            clear_glm_token_cache()
+            fresh_token = _get_auth_token(api_key, api_base)
+            headers["Authorization"] = f"Bearer {fresh_token}"
+            async with httpx.AsyncClient(timeout=timeout) as client:
+                resp = await client.post(url, headers=headers, json=body)
+
         if resp.status_code != 200:
             error_detail = ""
             try:
@@ -436,6 +450,15 @@ class LLMAnalyzer:
         try:
             async with httpx.AsyncClient(timeout=30) as client:
                 resp = await client.post(url, headers=headers, json=body)
+
+            # GLM 401 自动恢复：清除 JWT 缓存 → 重新生成 token → 重试一次
+            if resp.status_code in (401, 403) and _is_glm_api(api_base):
+                logger.info(f"GLM 测试返回 {resp.status_code}，清除JWT缓存并重新生成token重试")
+                clear_glm_token_cache()
+                fresh_token = _get_auth_token(api_key, api_base)
+                headers["Authorization"] = f"Bearer {fresh_token}"
+                async with httpx.AsyncClient(timeout=30) as client:
+                    resp = await client.post(url, headers=headers, json=body)
 
             if resp.status_code == 200:
                 data = resp.json()

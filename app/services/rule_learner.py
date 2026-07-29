@@ -12,6 +12,7 @@ import httpx
 
 from app import config
 from app.core.logging_config import get_logger
+from app.services.llm_analyzer import _get_auth_token
 
 logger = get_logger("rule_learner")
 
@@ -80,7 +81,7 @@ async def generate_learning(
 
     url = f"{api_base}/chat/completions"
     headers = {
-        "Authorization": f"Bearer {api_key}",
+        "Authorization": f"Bearer {_get_auth_token(api_key, api_base)}",
         "Content-Type": "application/json",
     }
     body = {
