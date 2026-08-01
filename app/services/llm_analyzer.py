@@ -324,14 +324,23 @@ class LLMAnalyzer:
         async with httpx.AsyncClient(timeout=timeout) as client:
             resp = await client.post(url, headers=headers, json=body)
 
-        # GLM 401 自动恢复：清除 JWT 缓存 → 重新生成 token → 重试一次
+        # GLM 401 自动恢复：双策略重试
         if resp.status_code in (401, 403) and _is_glm_api(api_base):
-            logger.info(f"GLM 返回 {resp.status_code}，清除JWT缓存并重新生成token重试")
-            clear_glm_token_cache()
-            fresh_token = _get_auth_token(api_key, api_base)
-            headers["Authorization"] = f"Bearer {fresh_token}"
-            async with httpx.AsyncClient(timeout=timeout) as client:
-                resp = await client.post(url, headers=headers, json=body)
+            jwt_was_used = auth_token != api_key  # JWT was generated
+            if jwt_was_used:
+                # 策略1: JWT失败了 → 尝试原始key直传（coding plan可能不接受JWT）
+                logger.info("GLM 401: JWT失败，尝试原始key直传")
+                clear_glm_token_cache()
+                headers["Authorization"] = f"Bearer {api_key}"
+                await asyncio.sleep(1)
+                async with httpx.AsyncClient(timeout=timeout) as client:
+                    resp = await client.post(url, headers=headers, json=body)
+            else:
+                # 策略2: 原始key失败了 → 等待后重试（GLM瞬时拒绝）
+                logger.info("GLM 401: 原始key被拒，等待2秒后重试")
+                await asyncio.sleep(2)
+                async with httpx.AsyncClient(timeout=timeout) as client:
+                    resp = await client.post(url, headers=headers, json=body)
 
         if resp.status_code != 200:
             error_detail = ""
@@ -451,14 +460,21 @@ class LLMAnalyzer:
             async with httpx.AsyncClient(timeout=30) as client:
                 resp = await client.post(url, headers=headers, json=body)
 
-            # GLM 401 自动恢复：清除 JWT 缓存 → 重新生成 token → 重试一次
+            # GLM 401 自动恢复：双策略重试
             if resp.status_code in (401, 403) and _is_glm_api(api_base):
-                logger.info(f"GLM 测试返回 {resp.status_code}，清除JWT缓存并重新生成token重试")
-                clear_glm_token_cache()
-                fresh_token = _get_auth_token(api_key, api_base)
-                headers["Authorization"] = f"Bearer {fresh_token}"
-                async with httpx.AsyncClient(timeout=30) as client:
-                    resp = await client.post(url, headers=headers, json=body)
+                jwt_was_used = auth_token != api_key
+                if jwt_was_used:
+                    logger.info("GLM 测试401: JWT失败，尝试原始key直传")
+                    clear_glm_token_cache()
+                    headers["Authorization"] = f"Bearer {api_key}"
+                    await asyncio.sleep(1)
+                    async with httpx.AsyncClient(timeout=30) as client:
+                        resp = await client.post(url, headers=headers, json=body)
+                else:
+                    logger.info("GLM 测试401: 原始key被拒，等待2秒后重试")
+                    await asyncio.sleep(2)
+                    async with httpx.AsyncClient(timeout=30) as client:
+                        resp = await client.post(url, headers=headers, json=body)
 
             if resp.status_code == 200:
                 data = resp.json()
@@ -487,8 +503,9 @@ class LLMAnalyzer:
                 # 认证类错误：附带实际使用的key/api_base（脱敏），方便排查
                 if resp.status_code in (401, 403):
                     masked = (api_key[:6] + "..." + api_key[-4:]) if len(api_key) > 12 else "***"
-                    hint = (f" | 实际发送: key={masked}(长度{len(api_key)}) base={api_base} "
-                            f"model={model}。可能原因: key错误/过期/含空格、或key与api_base不属于同一服务商")
+                    has_dot = "." in api_key
+                    hint = (f" | key={masked}(长度{len(api_key)},{'含dot→已尝试JWT+原始key' if has_dot else '无dot→直传'}) "
+                            f"base={api_base} model={model}")
                     detail = detail + hint
                 return {
                     "success": False,
