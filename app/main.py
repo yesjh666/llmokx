@@ -67,6 +67,17 @@ async def startup_event():
     config.reload_config()
     logger.info("配置已加载(强制刷新)")
 
+    # 诊断：打印 api_key 指纹（排查 key 读取问题）
+    import hashlib
+    _llm_cfg = config.get_section("llm_analysis")
+    _key = _llm_cfg.get("api_key", "")
+    if _key:
+        _has_invisible = any(not c.isprintable() or ord(c) >= 128 for c in _key)
+        _fp = hashlib.md5(_key.encode()).hexdigest()[:8]
+        logger.info(f"LLM api_key 诊断: 指纹={_fp}, 长度={len(_key)}, 含非可见字符={_has_invisible}")
+    else:
+        logger.warning("LLM api_key 为空！请检查 config/unified-config.json")
+
     # 启动后：测试所有模型连接 + 发送 Telegram 通知
     import asyncio
     async def _startup_model_check():

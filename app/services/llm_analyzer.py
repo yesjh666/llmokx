@@ -95,6 +95,24 @@ def _get_auth_token(api_key: str, api_base: str) -> str:
     return api_key
 
 
+def _clean_key(key: str) -> str:
+    """
+    清理 API key：移除所有非可见字符（换行、制表符、零宽字符、BOM等）。
+    API key 应只包含可打印 ASCII 字符。
+    """
+    if not key:
+        return ""
+    cleaned = "".join(c for c in key if c.isprintable() and ord(c) < 128).strip()
+    if cleaned != key:
+        import hashlib
+        logger.warning(
+            f"API key 含非可见字符! 原始长度={len(key)}, 清理后长度={len(cleaned)}, "
+            f"原始指纹={hashlib.md5(key.encode()).hexdigest()[:8]}, "
+            f"清理后指纹={hashlib.md5(cleaned.encode()).hexdigest()[:8]}"
+        )
+    return cleaned
+
+
 class LLMAnalyzer:
     """LLM意图分析器，直接调用大模型API"""
 
@@ -173,7 +191,10 @@ class LLMAnalyzer:
             })
         for bk in (self.config.get("backup_models") or []):
             if bk.get("model") and bk.get("api_base"):
-                # 备用模型可单独配置 temperature，未配置则用全局值
+                bk_model = (bk.get("model", "") or "").strip()
+                bk_base = (bk.get("api_base", "") or "").strip()
+                bk_key = _clean_key(bk.get("api_key", "")) or api_key
+                bk_thinking = bk.get("thinking", thinking)
                 bk_temp = bk.get("temperature")
                 try:
                     bk_temp = float(bk_temp) if bk_temp is not None else global_temp
@@ -291,7 +312,7 @@ class LLMAnalyzer:
         """调用大模型API（OpenAI兼容接口）- 使用传入的连接参数"""
         model = (model or "").strip()
         api_base = (api_base or "").strip()
-        api_key = (api_key or "").strip()
+        api_key = _clean_key(api_key)
 
         timeout = self.config.get("timeout", 90)
         max_tokens = self.config.get("max_tokens", 800)
@@ -432,7 +453,7 @@ class LLMAnalyzer:
     ) -> Dict[str, Any]:
         """测试单个模型配置的连通性（发送一条简短消息）"""
         api_base = (api_base or "").strip()
-        api_key = (api_key or "").strip()
+        api_key = _clean_key(api_key)
         model = (model or "").strip()
 
         if not api_key:
