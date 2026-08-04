@@ -8,7 +8,6 @@ import json
 import time
 import asyncio
 import logging
-import shlex
 from typing import Dict, Any, Optional, List
 
 import httpx
@@ -118,7 +117,7 @@ class Notifier:
     # ==================== 微信通道 ====================
 
     async def send_wechat(self, msg: str) -> Dict[str, Any]:
-        """发送微信通知（带重试）"""
+        """发送微信通知（Server酱，带重试）"""
         self._refresh_config()
 
         if not self._wechat_cfg.get("enabled", False):
@@ -126,8 +125,6 @@ class Notifier:
 
         max_retries = self._cfg.get("max_retries", 3)
         retry_interval = self._cfg.get("retry_interval", 5)
-        use_openclaw = self._wechat_cfg.get("use_openclaw", True)
-        method = "webhook" if not use_openclaw else "openclaw"
         start_time = time.time()
 
         for attempt in range(1, max_retries + 1):
@@ -137,18 +134,15 @@ class Notifier:
                     logger.info(f"微信推送第{attempt}次重试,等待{wait}秒...")
                     await asyncio.sleep(wait)
                 else:
-                    await asyncio.sleep(2)
+                    await asyncio.sleep(1)
 
-                if use_openclaw:
-                    success, info = await self._send_wechat_via_openclaw(msg)
-                else:
-                    success, info = await self._send_wechat_via_webhook(msg)
+                success, info = await self._send_wechat_via_serverchan(msg)
 
                 if success:
                     elapsed = time.time() - start_time
                     log_notification(
                         message=msg, channel="wechat", success=True, attempts=attempt,
-                        method=method, elapsed=elapsed,
+                        method="serverchan", elapsed=elapsed,
                     )
                     return {"success": True, "message": info, "attempts": attempt}
                 else:
@@ -163,62 +157,37 @@ class Notifier:
         fail_msg = f"微信推送失败,已重试{max_retries}次"
         log_notification(
             message=msg, channel="wechat", success=False, attempts=max_retries,
-            method=method, error=fail_msg, elapsed=elapsed,
+            method="serverchan", error=fail_msg, elapsed=elapsed,
         )
         return {"success": False, "message": fail_msg, "attempts": max_retries}
 
-    async def _send_wechat_via_openclaw(self, msg: str) -> tuple:
-        """通过 openclaw message send 命令发送微信"""
-        target = self._wechat_cfg.get("target", "")
-        account = self._wechat_cfg.get("account", "")
-        channel = self._wechat_cfg.get("channel", "openclaw-weixin")
+    async def _send_wechat_via_serverchan(self, msg: str) -> tuple:
+        """通过 Server酱 (sct.ftqq.com) 发送微信通知"""
+        sendkey = self._wechat_cfg.get("sendkey", "")
+        if not sendkey:
+            return False, "Server酱 SendKey未配置"
 
-        if not target:
-            return False, "微信target未配置"
+        # Server酱 API: POST https://sctapi.ftqq.com/{sendkey}.send
+        url = f"https://sctapi.ftqq.com/{sendkey}.send"
 
-        safe_msg = shlex.quote(msg)
-        cmd = f"openclaw message send --channel {channel} --account {account} --target {target} -m {safe_msg}"
-
-        try:
-            proc = await asyncio.create_subprocess_shell(
-                cmd,
-                stdout=asyncio.subprocess.PIPE,
-                stderr=asyncio.subprocess.PIPE,
-            )
-            stdout, stderr = await asyncio.wait_for(proc.communicate(), timeout=60)
-
-            stdout_str = stdout.decode().strip()
-            stderr_str = stderr.decode().strip()
-
-            if proc.returncode == 0 and "Sent via" in stdout_str:
-                return True, stdout_str
-            else:
-                return False, f"returncode={proc.returncode} stdout={stdout_str[:100]} stderr={stderr_str[:100]}"
-
-        except asyncio.TimeoutError:
-            return False, "openclaw命令超时"
-        except Exception as e:
-            return False, f"openclaw异常: {e}"
-
-    async def _send_wechat_via_webhook(self, msg: str) -> tuple:
-        """通过 webhook URL 发送（企业微信/钉钉/自定义webhook）"""
-        webhook_url = self._wechat_cfg.get("webhook_url", "")
-        if not webhook_url:
-            return False, "webhook_url未配置"
+        # title 最多32字，desp 支持markdown
+        title = msg.split("\n")[0][:32] if msg else "通知"
+        desp = msg
 
         try:
             async with httpx.AsyncClient(timeout=15) as client:
-                resp = await client.post(
-                    webhook_url,
-                    json={"content": msg},
-                    headers={"Content-Type": "application/json"},
-                )
+                resp = await client.post(url, data={"title": title, "desp": desp})
+
             if resp.status_code == 200:
-                return True, "webhook发送成功"
+                data = resp.json()
+                if data.get("code") == 0:
+                    return True, "Server酱发送成功"
+                else:
+                    return False, f"Server酱返回错误: {data.get('message', '未知')}"
             else:
-                return False, f"webhook返回 {resp.status_code}"
+                return False, f"Server酱 HTTP {resp.status_code}: {resp.text[:200]}"
         except Exception as e:
-            return False, f"webhook异常: {e}"
+            return False, f"Server酱异常: {e}"
 
     # ==================== Telegram通道 ====================
 

@@ -638,28 +638,12 @@
                         </label>
                     </div>
                     <div class="collapse-body collapsed">
-                        <div class="form-group">
-                            <label>
-                                <input type="checkbox" id="notify-use-openclaw" checked> 使用 openclaw 命令发送
-                            </label>
-                        </div>
-                        <div class="form-row">
-                            <div class="form-group">
-                                <label class="form-label">微信Target</label>
-                                <input type="text" class="form-input" id="notify-wechat-target" placeholder="o9cq80zZk50Q33Snd8zOZ5vlAEQ4@im.wechat">
-                            </div>
-                            <div class="form-group">
-                                <label class="form-label">微信Account</label>
-                                <input type="text" class="form-input" id="notify-wechat-account" placeholder="ea3465f35dfb-im-bot">
-                            </div>
+                        <div style="background:rgba(59,130,246,0.08);border:1px solid rgba(59,130,246,0.2);padding:8px;border-radius:4px;font-size:12px;margin-bottom:12px;">
+                            使用 Server酱 推送到微信。获取 SendKey：<a href="https://sct.ftqq.com/sendkey" target="_blank" style="color:#60a5fa;">sct.ftqq.com/sendkey</a>
                         </div>
                         <div class="form-group">
-                            <label class="form-label">微信通道</label>
-                            <input type="text" class="form-input" id="notify-wechat-channel" placeholder="openclaw-weixin">
-                        </div>
-                        <div class="form-group">
-                            <label class="form-label">Webhook URL（不使用openclaw时生效）</label>
-                            <input type="text" class="form-input" id="notify-webhook-url" placeholder="https://qyapi.weixin.qq.com/cgi-bin/webhook/send?key=xxx">
+                            <label class="form-label">Server酱 SendKey</label>
+                            <input type="text" class="form-input" id="notify-wechat-sendkey" placeholder="SCT1234abc...">
                         </div>
                         <button class="btn btn-primary" onclick="saveWechatConfig()">保存微信配置</button>
                         <button class="btn btn-success" onclick="testNotification('wechat')" style="margin-left:8px;">测试</button>

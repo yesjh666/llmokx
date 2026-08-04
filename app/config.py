@@ -47,12 +47,8 @@ DEFAULT_CONFIG = {
         "retry_interval": 5,
         "parallel": True,
         "wechat": {
-            "enabled": True,
-            "target": "o9cq80zZk50Q33Snd8zOZ5vlAEQ4@im.wechat",
-            "account": "ea3465f35dfb-im-bot",
-            "channel": "openclaw-weixin",
-            "use_openclaw": True,
-            "webhook_url": ""
+            "enabled": False,
+            "sendkey": "",
         },
         "telegram": {
             "enabled": True,

@@ -852,13 +852,14 @@ async function loadNotificationConfig() {
         document.getElementById('notify-retry-interval').value = cfg.retry_interval || 5;
         document.getElementById('notify-parallel').checked = cfg.parallel !== false;
 
-        // 微信通道
+        // 微信通道（Server酱）
         const wechat = cfg.wechat || {};
         document.getElementById('notify-wechat-enabled').checked = wechat.enabled !== false;
-        document.getElementById('notify-use-openclaw').checked = wechat.use_openclaw !== false;
-        document.getElementById('notify-wechat-target').value = wechat.target || '';
-        document.getElementById('notify-wechat-account').value = wechat.account || '';
-        document.getElementById('notify-webhook-url').value = wechat.webhook_url || '';
+        const sk = document.getElementById('notify-wechat-sendkey');
+        if (sk) {
+            sk.value = wechat.sendkey || '';
+            if (wechat.sendkey) sk.placeholder = '已配置（输入新值覆盖）';
+        }
 
         // Telegram通道（bot_token 在共享配置区管理）
         const telegram = cfg.telegram || {};
@@ -890,11 +891,7 @@ async function saveWechatConfig() {
     const data = {
         wechat: {
             enabled: document.getElementById('notify-wechat-enabled').checked,
-            use_openclaw: document.getElementById('notify-use-openclaw').checked,
-            target: document.getElementById('notify-wechat-target').value.trim(),
-            account: document.getElementById('notify-wechat-account').value.trim(),
-            channel: document.getElementById('notify-wechat-channel').value.trim(),
-            webhook_url: document.getElementById('notify-webhook-url').value.trim(),
+            sendkey: document.getElementById('notify-wechat-sendkey').value.trim(),
         },
     };
     try {
