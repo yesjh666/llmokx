@@ -846,27 +846,29 @@ async function testForwardTarget(index) {
 async function loadNotificationConfig() {
     try {
         const cfg = await api('/api/notification/config');
-        // 全局开关
-        document.getElementById('notify-enabled').checked = cfg.enabled !== false;
-        document.getElementById('notify-max-retries').value = cfg.max_retries || 3;
-        document.getElementById('notify-retry-interval').value = cfg.retry_interval || 5;
-        document.getElementById('notify-parallel').checked = cfg.parallel !== false;
+        const set = (id, val) => { const el = document.getElementById(id); if (el) el.value = val; };
+        const check = (id, val) => { const el = document.getElementById(id); if (el) el.checked = val; };
+
+        check('notify-enabled', cfg.enabled !== false);
+        set('notify-max-retries', cfg.max_retries || 3);
+        set('notify-retry-interval', cfg.retry_interval || 5);
+        check('notify-parallel', cfg.parallel !== false);
 
         // 微信通道（Server酱）
         const wechat = cfg.wechat || {};
-        document.getElementById('notify-wechat-enabled').checked = wechat.enabled !== false;
+        check('notify-wechat-enabled', wechat.enabled !== false);
         const sk = document.getElementById('notify-wechat-sendkey');
         if (sk) {
             sk.value = wechat.sendkey || '';
             if (wechat.sendkey) sk.placeholder = '已配置（输入新值覆盖）';
         }
 
-        // Telegram通道（bot_token 在共享配置区管理）
+        // Telegram通道
         const telegram = cfg.telegram || {};
-        document.getElementById('notify-telegram-enabled').checked = telegram.enabled !== false;
-        document.getElementById('notify-telegram-chat-id').value = telegram.chat_id || '';
-        document.getElementById('notify-telegram-parse-mode').value = telegram.parse_mode || 'HTML';
-        document.getElementById('notify-telegram-disable-notification').checked = telegram.disable_notification || false;
+        check('notify-telegram-enabled', telegram.enabled !== false);
+        set('notify-telegram-chat-id', telegram.chat_id || '');
+        set('notify-telegram-parse-mode', telegram.parse_mode || 'HTML');
+        check('notify-telegram-disable-notification', telegram.disable_notification || false);
     } catch (e) {
         toast('加载通知配置失败: ' + e.message, 'error');
     }
