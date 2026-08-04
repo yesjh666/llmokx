@@ -851,13 +851,15 @@
 
             <!-- 两列：回滚 + 配置 -->
             <div class="grid-2">
-                <!-- 版本回滚 -->
+                <!-- 版本回滚（折叠） -->
                 <div class="card">
-                    <div class="card-header">
+                    <div class="card-header collapse-header collapsed" onclick="toggleCollapse(this)">
                         <span class="card-title">📦 版本回滚</span>
-                        <button class="btn btn-sm btn-default" onclick="loadBackups()">刷新</button>
+                        <button class="btn btn-sm btn-default" onclick="loadBackups(); event.stopPropagation();">刷新</button>
                     </div>
-                    <div id="update-backups-list"></div>
+                    <div class="collapse-body collapsed">
+                        <div id="update-backups-list"></div>
+                    </div>
                 </div>
 
                 <!-- 升级配置（折叠） -->
