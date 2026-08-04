@@ -12,11 +12,7 @@ router = APIRouter()
 
 class WeChatConfigUpdate(BaseModel):
     enabled: Optional[bool] = None
-    target: Optional[str] = None
-    account: Optional[str] = None
-    channel: Optional[str] = None
-    use_openclaw: Optional[bool] = None
-    webhook_url: Optional[str] = None
+    sendkey: Optional[str] = None
 
 
 class TelegramConfigUpdate(BaseModel):
