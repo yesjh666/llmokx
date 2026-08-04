@@ -815,92 +815,87 @@
         <div class="page" id="page-update">
             <div class="page-header">
                 <h2>🔄 升级管理</h2>
-                <p>检查更新、自动升级、版本回滚</p>
+                <p>检查更新、一键升级、版本回滚</p>
             </div>
 
-            <!-- 紧凑状态栏：版本 + 方式 + 自动升级 + 操作按钮 -->
-            <div class="card" style="padding:12px 16px;">
+            <!-- 版本状态 + 操作按钮 -->
+            <div class="card" style="padding:14px 16px;">
                 <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;">
-                    <div id="update-version-display" style="display:flex;align-items:center;gap:16px;flex-wrap:wrap;">
+                    <div id="update-version-display" style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
                         <span style="font-size:12px;color:#6b7280;">加载中...</span>
                     </div>
                     <div style="display:flex;gap:8px;flex-shrink:0;">
-                        <button class="btn btn-sm btn-default" onclick="loadUpdateVersion()">刷新</button>
-                        <button class="btn btn-sm btn-primary" onclick="checkUpdates()">检查更新</button>
-                        <button class="btn btn-sm btn-success" onclick="performUpdate()" id="btn-perform-update">立即升级</button>
-                        <button class="btn btn-sm btn-warning" onclick="restartService()">重启服务</button>
+                        <button class="btn btn-sm btn-default" onclick="loadUpdateVersion()">🔄 刷新</button>
+                        <button class="btn btn-sm btn-primary" onclick="checkUpdates()">📡 检查更新</button>
+                        <button class="btn btn-sm btn-success" onclick="performUpdate()" id="btn-perform-update">⬆️ 立即升级</button>
+                        <button class="btn btn-sm btn-warning" onclick="restartService()">🔁 重启服务</button>
                     </div>
                 </div>
             </div>
 
-            <!-- 检查更新结果 -->
-            <div class="card" id="update-check-card" style="padding:12px 16px;">
+            <!-- 检查结果 / 升级进度 / 升级结果（合并到一张卡片） -->
+            <div class="card" id="update-result-card">
                 <div id="update-check-display">
-                    <div class="empty-state" style="padding:12px;">
-                        <div class="empty-icon">🔄</div>
-                        <div>点击"检查更新"查看是否有新版本</div>
+                    <div class="empty-state" style="padding:20px;">
+                        <div class="empty-icon">📡</div>
+                        <div>点击「检查更新」查看是否有新版本</div>
                     </div>
                 </div>
+                <div id="update-progress" style="display:none;margin-top:12px;">
+                    <div style="background:#12141c;border:1px solid #262830;padding:12px;border-radius:6px;">
+                        <div id="update-progress-text">⏳ 升级中...</div>
+                    </div>
+                </div>
+                <div id="update-result" style="margin-top:12px;"></div>
             </div>
 
-            <!-- 两列：执行升级 + 升级配置 -->
+            <!-- 两列：回滚 + 配置 -->
             <div class="grid-2">
-                <!-- 执行升级 -->
+                <!-- 版本回滚 -->
                 <div class="card">
                     <div class="card-header">
-                        <span class="card-title">执行升级</span>
+                        <span class="card-title">📦 版本回滚</span>
+                        <button class="btn btn-sm btn-default" onclick="loadBackups()">刷新</button>
                     </div>
-                    <div style="background:rgba(245,158,11,0.08);border:1px solid rgba(245,158,11,0.2);padding:10px;border-radius:6px;border-left:3px solid #f59e0b;font-size:13px;margin-bottom:12px;">
-                        自动备份到 <code>backup/</code>，保留 config/data/logs/venv；升级后需点「重启服务」生效；出问题可回滚恢复。
+                    <div id="update-backups-list"></div>
+                </div>
+
+                <!-- 升级配置（折叠） -->
+                <div class="card">
+                    <div class="card-header collapse-header collapsed" onclick="toggleCollapse(this)">
+                        <span class="card-title">⚙️ 升级配置</span>
                     </div>
-                    <div id="update-progress" style="display:none;margin-bottom:12px;">
-                        <div style="background:#12141c;border:1px solid #262830;padding:10px;border-radius:6px;">
-                            <div id="update-progress-text">升级中...</div>
+                    <div class="collapse-body collapsed">
+                        <div style="background:rgba(59,130,246,0.08);border:1px solid rgba(59,130,246,0.2);padding:8px;border-radius:4px;font-size:12px;margin-bottom:12px;">
+                            升级前自动备份到 <code>backup/</code>，保留 config/data/logs/venv。升级后自动重启并发通知。
                         </div>
-                    </div>
-                    <div id="update-result"></div>
-                </div>
-
-                <!-- 升级配置 -->
-                <div class="card">
-                    <div class="card-header">
-                        <span class="card-title">升级配置</span>
-                        <button class="btn btn-sm btn-primary" onclick="saveUpdateConfig()">保存</button>
-                    </div>
-                    <div class="form-group">
-                        <label class="form-label">升级方式</label>
-                        <select class="form-select" id="update-method">
-                            <option value="release">GitHub Releases（下载压缩包）</option>
-                            <option value="git">Git Pull（拉取最新代码）</option>
-                        </select>
-                    </div>
-                    <div class="form-group">
-                        <label class="form-label">GitHub 仓库（owner/repo 格式）</label>
-                        <input type="text" class="form-input" id="update-github-repo" placeholder="如 yesjh666/llmokx">
-                    </div>
-                    <div class="form-group">
-                        <label class="form-label">资源文件名匹配模式</label>
-                        <input type="text" class="form-input" id="update-asset-pattern" placeholder="llmokx-*.tar.gz">
-                    </div>
-                    <div class="form-group">
-                        <label class="form-label">重启命令</label>
-                        <input type="text" class="form-input" id="update-restart-command" placeholder="systemctl restart llmokx">
-                    </div>
-                    <div class="form-group" style="display:flex;flex-wrap:wrap;gap:16px;align-items:center;">
-                        <label><input type="checkbox" id="update-enabled"> 启用自动升级</label>
-                        <label><input type="checkbox" id="update-check-on-startup"> 启动时检查</label>
-                        <label><input type="checkbox" id="update-notify-on-update"> 微信通知</label>
+                        <div class="form-group">
+                            <label class="form-label">升级方式</label>
+                            <select class="form-select" id="update-method">
+                                <option value="release">GitHub Releases（下载压缩包）</option>
+                                <option value="git">Git Pull（拉取最新代码）</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">GitHub 仓库</label>
+                            <input type="text" class="form-input" id="update-github-repo" placeholder="owner/repo">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">资源文件匹配</label>
+                            <input type="text" class="form-input" id="update-asset-pattern" placeholder="llmokx-*.tar.gz">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">重启命令</label>
+                            <input type="text" class="form-input" id="update-restart-command" placeholder="systemctl restart llmokx">
+                        </div>
+                        <div class="form-group" style="display:flex;flex-wrap:wrap;gap:14px;align-items:center;">
+                            <label><input type="checkbox" id="update-enabled"> 启用自动升级</label>
+                            <label><input type="checkbox" id="update-check-on-startup"> 启动时检查</label>
+                            <label><input type="checkbox" id="update-notify-on-update"> 升级通知</label>
+                        </div>
+                        <button class="btn btn-sm btn-primary" onclick="saveUpdateConfig()">💾 保存配置</button>
                     </div>
                 </div>
-            </div>
-
-            <!-- 版本回滚 -->
-            <div class="card">
-                <div class="card-header">
-                    <span class="card-title">版本回滚</span>
-                    <button class="btn btn-sm btn-default" onclick="loadBackups()">刷新</button>
-                </div>
-                <div id="update-backups-list"></div>
             </div>
         </div>
 
