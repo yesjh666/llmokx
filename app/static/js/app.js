@@ -1710,7 +1710,8 @@ async function loadBackups() {
         const data = await api('/api/update/backups');
         const backups = data.backups || [];
         if (backups.length === 0) {
-            container.innerHTML = '<div class="empty-state"><div class="empty-icon">📦</div><div>暂无备份</div></div>';
+            const dir = data.backup_dir || 'backup/';
+            container.innerHTML = `<div class="empty-state"><div class="empty-icon">📦</div><div>暂无备份</div><div style="font-size:12px;color:#6b7280;margin-top:4px;">备份在升级时自动创建（${escapeHtml(dir)}）</div></div>`;
             return;
         }
         let html = '<table class="table"><thead><tr><th>备份名称</th><th>版本</th><th>时间</th><th>大小</th><th>操作</th></tr></thead><tbody>';

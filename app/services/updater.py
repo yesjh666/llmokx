@@ -293,6 +293,27 @@ async def check_update() -> Dict[str, Any]:
     return {"method": "release", **await check_release_update()}
 
 
+def _create_backup() -> str:
+    """创建当前版本备份，返回备份路径"""
+    preserve_dirs = _load_update_config().get("preserve_dirs", ["config", "data", "logs", "venv"])
+    backup_name = f"backup-{get_current_version()}-{datetime.now().strftime('%Y%m%d-%H%M%S')}"
+    backup_path = os.path.join(BACKUP_DIR, backup_name)
+    os.makedirs(BACKUP_DIR, exist_ok=True)
+    os.makedirs(backup_path, exist_ok=True)
+
+    logger.info(f"备份当前版本到: {backup_path}")
+    for item in os.listdir(_BASE_DIR):
+        if item in preserve_dirs or item in ("backup", "__pycache__"):
+            continue
+        src = os.path.join(_BASE_DIR, item)
+        dst = os.path.join(backup_path, item)
+        if os.path.isfile(src):
+            shutil.copy2(src, dst)
+        elif os.path.isdir(src):
+            shutil.copytree(src, dst)
+    return backup_path
+
+
 # ========================================
 # 执行升级 - Release 方式
 # ========================================
@@ -344,22 +365,8 @@ async def perform_release_update(
                     raise Exception(f"下载不完整: {actual}/{total} 字节")
             logger.info(f"下载完成: {os.path.getsize(archive_path) // 1048576}MB")
 
-            # 2. 备份当前版本（保留的目录除外）
-            backup_name = f"backup-{get_current_version()}-{datetime.now().strftime('%Y%m%d-%H%M%S')}"
-            backup_path = os.path.join(BACKUP_DIR, backup_name)
-            os.makedirs(BACKUP_DIR, exist_ok=True)
-            os.makedirs(backup_path, exist_ok=True)
-
-            logger.info(f"备份当前版本到: {backup_path}")
-            for item in os.listdir(_BASE_DIR):
-                if item in preserve_dirs or item in ("backup", "__pycache__"):
-                    continue
-                src = os.path.join(_BASE_DIR, item)
-                dst = os.path.join(backup_path, item)
-                if os.path.isfile(src):
-                    shutil.copy2(src, dst)
-                elif os.path.isdir(src):
-                    shutil.copytree(src, dst)
+            # 2. 备份当前版本
+            backup_path = _create_backup()
 
             # 3. 解压到临时目录
             extract_dir = os.path.join(tmpdir, "extracted")
@@ -436,6 +443,10 @@ def perform_git_update(progress_cb: Optional[Callable[[int], None]] = None) -> D
     git pull + 更新依赖 + 重启
     """
     try:
+        # 升级前先备份（与 release 方式一致）
+        backup_path = _create_backup()
+        logger.info(f"Git 升级前已备份到: {backup_path}")
+
         logger.info("执行 git pull 拉取最新代码...")
         if progress_cb:
             progress_cb(10)
@@ -569,8 +580,10 @@ def list_backups() -> Dict[str, Any]:
     """列出所有备份"""
     backups = []
     if not os.path.exists(BACKUP_DIR):
-        return {"backups": [], "total": 0}
+        logger.info(f"备份目录不存在: {BACKUP_DIR}")
+        return {"backups": [], "total": 0, "backup_dir": BACKUP_DIR}
 
+    logger.info(f"扫描备份目录: {BACKUP_DIR}")
     for name in sorted(os.listdir(BACKUP_DIR), reverse=True):
         path = os.path.join(BACKUP_DIR, name)
         if not os.path.isdir(path):
