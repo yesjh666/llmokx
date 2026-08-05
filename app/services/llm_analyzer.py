@@ -219,8 +219,16 @@ class LLMAnalyzer:
         actual_retries = 0
         used_model = chain[0]["label"] if chain else model
         chain_errors = []   # 每个模型的错误明细
+        failed_auth_pairs = set()  # (api_key, api_base) 已 401 失败的凭证对
 
         for idx, mcfg in enumerate(chain):
+            # 优化：如果此模型的凭证(key+base)已因401失败，直接跳过（同凭证必定同结果）
+            pair = (mcfg["api_key"], mcfg["api_base"])
+            if pair in failed_auth_pairs:
+                logger.info(f"模型 {mcfg['label']} 凭证与前序401失败相同，跳过")
+                chain_errors.append({"model": mcfg["label"], "error": "同凭证已401，跳过"})
+                continue
+
             success_here = False
             for r in range(per_model_retries):
                 try:
@@ -243,6 +251,9 @@ class LLMAnalyzer:
                         "401", "403", "unauthorized", "令牌", "认证", "鉴权", "forbidden",
                     ))
                     logger.warning(f"LLM调用失败(模型{idx + 1}/{len(chain)} {mcfg['label']}, 重试{r + 1}/{per_model_retries}): {e}")
+                    if is_auth_err:
+                        # 记录此凭证对已401失败，后续同凭证的模型直接跳过
+                        failed_auth_pairs.add(pair)
                     # 认证类错误也重试（可能是瞬时token刷新/限流），重试耗尽才换下一个模型
                     if r < per_model_retries - 1:
                         await asyncio.sleep(1 if not is_auth_err else 2)
