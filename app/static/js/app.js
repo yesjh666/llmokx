@@ -234,6 +234,24 @@ async function testLLMConnection() {
     }
 }
 
+async function debugKey() {
+    try {
+        const d = await api('/api/llm/debug-key');
+        let msg = '🔍 API Key 诊断\n\n';
+        msg += `缓存: 长度=${d.cache.len} 指纹=${d.cache.hash} 含dot=${d.cache.has_dot}\n`;
+        msg += `磁盘: 长度=${d.disk.len} 指纹=${d.disk.hash} 含dot=${d.disk.has_dot}\n`;
+        msg += `清理后缓存: 长度=${d.cache_cleaned.len} 指纹=${d.cache_cleaned.hash}\n`;
+        msg += `清理后磁盘: 长度=${d.disk_cleaned.len} 指纹=${d.disk_cleaned.hash}\n`;
+        msg += `\n缓存==磁盘: ${d.cache_disk_match ? '✅一致' : '❌不一致！'}\n`;
+        msg += `清理后一致: ${d.cleaned_match ? '✅' : '❌'}\n`;
+        if (d.disk_error) msg += `磁盘读取错误: ${d.disk_error}\n`;
+        if (d.cache.repr !== d.disk.repr) msg += `\n⚠️ repr不同！\n缓存: ${d.cache.repr}\n磁盘: ${d.disk.repr}\n`;
+        alert(msg);
+    } catch (e) {
+        toast('诊断失败: ' + e.message, 'error');
+    }
+}
+
 async function analyzeTest() {
     const text = document.getElementById('analyze-input').value.trim();
     if (!text) {

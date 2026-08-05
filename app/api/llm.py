@@ -142,6 +142,63 @@ async def test_connection():
     return result
 
 
+@router.get("/debug-key")
+async def debug_key():
+    """诊断 API Key：对比缓存 vs 磁盘，直接测试"""
+    import hashlib
+    import os
+    import json as _json
+
+    def _fingerprint(key):
+        if not key:
+            return {"len": 0, "hash": "(empty)", "preview": "(empty)", "has_dot": False}
+        return {
+            "len": len(key),
+            "hash": hashlib.md5(key.encode()).hexdigest()[:8],
+            "preview": key[:4] + "*" * 4 + key[-4:] if len(key) > 8 else "***",
+            "has_dot": "." in key,
+            "repr": repr(key[:20]),
+        }
+
+    # 1. 从缓存读取
+    cached_cfg = config.get_section("llm_analysis")
+    cached_key = cached_cfg.get("api_key", "")
+    cached_base = cached_cfg.get("api_base", "")
+
+    # 2. 从磁盘直接读取（绕过缓存）
+    config_file = os.path.join(
+        os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))),
+        "config", "unified-config.json"
+    )
+    disk_key = ""
+    disk_error = ""
+    try:
+        with open(config_file, "r", encoding="utf-8-sig") as f:
+            disk_cfg = _json.load(f)
+        disk_key = disk_cfg.get("llm_analysis", {}).get("api_key", "")
+    except Exception as e:
+        disk_error = str(e)
+
+    # 3. 对比
+    match = cached_key == disk_key
+
+    # 4. 清理后对比
+    from app.services.llm_analyzer import _clean_key
+    cached_cleaned = _clean_key(cached_key)
+    disk_cleaned = _clean_key(disk_key)
+
+    return {
+        "cache": _fingerprint(cached_key),
+        "disk": _fingerprint(disk_key),
+        "cache_cleaned": _fingerprint(cached_cleaned),
+        "disk_cleaned": _fingerprint(disk_cleaned),
+        "cache_disk_match": match,
+        "cleaned_match": cached_cleaned == disk_cleaned,
+        "api_base": cached_base,
+        "disk_error": disk_error,
+    }
+
+
 @router.get("/model-status")
 async def get_model_status():
     """获取模型连接状态（从缓存读取）"""
