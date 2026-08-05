@@ -535,8 +535,16 @@ class TelethonClientManager:
             if topic_filter:
                 msg = event.message
                 reply_to = getattr(msg, "reply_to", None)
+                # 话题消息的 reply_to 结构：
+                #   回复类消息: reply_to_top_id=话题ID, reply_to_msg_id=被回复消息ID
+                #   非回复消息: reply_to_top_id=None, reply_to_msg_id=话题ID
                 top_id = getattr(reply_to, "reply_to_top_id", None) if reply_to else None
-                if top_id != topic_filter:
+                reply_msg_id = getattr(reply_to, "reply_to_msg_id", None) if reply_to else None
+                effective_topic = top_id if top_id else reply_msg_id
+                logger.info(f"[话题过滤] chat={chat_id} 配置topic={topic_filter} "
+                            f"top_id={top_id} reply_msg_id={reply_msg_id} → "
+                            f"{'✅匹配' if effective_topic == topic_filter else '❌跳过'}")
+                if effective_topic != topic_filter:
                     return  # 不是目标话题，跳过
 
             sender = await event.get_sender()
