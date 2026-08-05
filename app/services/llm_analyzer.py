@@ -119,6 +119,17 @@ class LLMAnalyzer:
     def __init__(self):
         self.config = config.get_section("llm_analysis")
         self._model_status: Optional[dict] = None
+        self._http_client: Optional[httpx.AsyncClient] = None
+
+    def _get_client(self, timeout: int = 90) -> httpx.AsyncClient:
+        """获取持久化 HTTP 客户端（复用连接池，避免频繁新建连接触发服务端限流）"""
+        if self._http_client is None or self._http_client.is_closed:
+            self._http_client = httpx.AsyncClient(
+                timeout=httpx.Timeout(timeout, connect=10),
+                limits=httpx.Limits(max_connections=10, max_keepalive_connections=5),
+                headers={"User-Agent": "LLMOKX/1.0"},
+            )
+        return self._http_client
 
     def _refresh_config(self):
         """刷新配置"""
@@ -353,8 +364,8 @@ class LLMAnalyzer:
         if thinking is False:
             body["thinking"] = {"type": "disabled"}
 
-        async with httpx.AsyncClient(timeout=timeout) as client:
-            resp = await client.post(url, headers=headers, json=body)
+        client = self._get_client(timeout)
+        resp = await client.post(url, headers=headers, json=body)
 
         # GLM 401 自动恢复：双策略重试
         if resp.status_code in (401, 403) and _is_glm_api(api_base):
@@ -365,14 +376,12 @@ class LLMAnalyzer:
                 clear_glm_token_cache()
                 headers["Authorization"] = f"Bearer {api_key}"
                 await asyncio.sleep(1)
-                async with httpx.AsyncClient(timeout=timeout) as client:
-                    resp = await client.post(url, headers=headers, json=body)
+                resp = await client.post(url, headers=headers, json=body)
             else:
                 # 策略2: 原始key失败了 → 等待后重试（GLM瞬时拒绝）
                 logger.info("GLM 401: 原始key被拒，等待2秒后重试")
                 await asyncio.sleep(2)
-                async with httpx.AsyncClient(timeout=timeout) as client:
-                    resp = await client.post(url, headers=headers, json=body)
+                resp = await client.post(url, headers=headers, json=body)
 
         if resp.status_code != 200:
             error_detail = ""
@@ -489,8 +498,8 @@ class LLMAnalyzer:
             body["thinking"] = {"type": "disabled"}
 
         try:
-            async with httpx.AsyncClient(timeout=30) as client:
-                resp = await client.post(url, headers=headers, json=body)
+            client = self._get_client(30)
+            resp = await client.post(url, headers=headers, json=body)
 
             # GLM 401 自动恢复：双策略重试
             if resp.status_code in (401, 403) and _is_glm_api(api_base):
@@ -500,13 +509,11 @@ class LLMAnalyzer:
                     clear_glm_token_cache()
                     headers["Authorization"] = f"Bearer {api_key}"
                     await asyncio.sleep(1)
-                    async with httpx.AsyncClient(timeout=30) as client:
-                        resp = await client.post(url, headers=headers, json=body)
+                    resp = await client.post(url, headers=headers, json=body)
                 else:
                     logger.info("GLM 测试401: 原始key被拒，等待2秒后重试")
                     await asyncio.sleep(2)
-                    async with httpx.AsyncClient(timeout=30) as client:
-                        resp = await client.post(url, headers=headers, json=body)
+                    resp = await client.post(url, headers=headers, json=body)
 
             if resp.status_code == 200:
                 data = resp.json()
