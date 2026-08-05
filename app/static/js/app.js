@@ -991,28 +991,33 @@ async function loadMonitorConfig() {
         document.getElementById('monitor-msg-dedup').value = cfg.message_dedup_seconds ?? 300;
         document.getElementById('monitor-intent-dedup').value = cfg.intent_dedup_seconds ?? 300;
         document.getElementById('monitor-notify-on-signal').checked = cfg.notify_on_signal !== false;
-        renderMonitorChats(cfg.chat_ids || [], cfg.chat_names || {});
+        renderMonitorChats(cfg.chat_ids || [], cfg.chat_names || {}, cfg.chat_topics || {});
     } catch (e) {
         toast('加载监听配置失败: ' + e.message, 'error');
     }
 }
 
-function renderMonitorChats(chatIds, chatNames) {
+function renderMonitorChats(chatIds, chatNames, chatTopics) {
     const container = document.getElementById('monitor-chats-list');
     if (!chatIds || chatIds.length === 0) {
         container.innerHTML = '<div class="empty-state"><div class="empty-icon">📡</div><div>暂无监听群，请添加</div></div>';
         return;
     }
     container.innerHTML = chatIds.map(id => {
-        const name = chatNames[id] || '未命名';
+        const name = (chatNames || {})[id] || '未命名';
+        const topic = (chatTopics || {})[id];
+        const topicTag = topic ? `<span class="badge badge-info">话题 ${topic}</span>` : '<span class="badge">全部话题</span>';
         return `
-            <div class="list-item">
-                <div class="list-item-content">
-                    <strong>${escapeHtml(name)}</strong>
-                    <div style="font-size:12px;color:#6b7280;">Chat ID: ${escapeHtml(id)}</div>
-                </div>
-                <div class="list-item-actions">
-                    <button class="btn btn-sm btn-danger" onclick="removeMonitorChat('${escapeHtml(id)}')">移除</button>
+            <div class="list-item" style="flex-direction:column;align-items:stretch;">
+                <div style="display:flex;justify-content:space-between;align-items:center;">
+                    <div class="list-item-content">
+                        <strong>${escapeHtml(name)}</strong> ${topicTag}
+                        <div style="font-size:12px;color:#6b7280;">Chat ID: ${escapeHtml(id)}</div>
+                    </div>
+                    <div class="list-item-actions">
+                        <button class="btn btn-sm btn-default" onclick="editMonitorChat('${escapeHtml(id)}')">编辑</button>
+                        <button class="btn btn-sm btn-danger" onclick="removeMonitorChat('${escapeHtml(id)}')">移除</button>
+                    </div>
                 </div>
             </div>`;
     }).join('');
@@ -1039,15 +1044,41 @@ async function saveMonitorConfig() {
 async function addMonitorChat() {
     const chatId = document.getElementById('new-monitor-chat-id').value.trim();
     const name = document.getElementById('new-monitor-chat-name').value.trim();
+    const topicStr = document.getElementById('new-monitor-chat-topic').value.trim();
     if (!chatId) { toast('请填写群 Chat ID', 'error'); return; }
+    const topic_id = topicStr ? parseInt(topicStr) : null;
     try {
-        await api('/api/monitor/chats/add', { method: 'POST', body: JSON.stringify({ chat_id: chatId, name }) });
+        const body = { chat_id: chatId, name };
+        if (topic_id) body.topic_id = topic_id;
+        await api('/api/monitor/chats/add', { method: 'POST', body: JSON.stringify(body) });
         toast('监听群已添加', 'success');
         document.getElementById('new-monitor-chat-id').value = '';
         document.getElementById('new-monitor-chat-name').value = '';
+        document.getElementById('new-monitor-chat-topic').value = '';
         loadMonitorConfig();
     } catch (e) {
         toast('添加失败: ' + e.message, 'error');
+    }
+}
+
+async function editMonitorChat(chatId) {
+    const cfg = await api('/api/monitor/config');
+    const name = (cfg.chat_names || {})[chatId] || '';
+    const topic = (cfg.chat_topics || {})[chatId];
+    const newName = prompt('备注名称：', name);
+    if (newName === null) return;
+    const topicStr = prompt('话题 ID（留空或0=全部话题）：', topic || '');
+    if (topicStr === null) return;
+    const topicId = parseInt(topicStr) || 0;
+    try {
+        await api('/api/monitor/chats/update', {
+            method: 'POST',
+            body: JSON.stringify({ chat_id: chatId, name: newName, topic_id: topicId }),
+        });
+        toast('已更新', 'success');
+        loadMonitorConfig();
+    } catch (e) {
+        toast('更新失败: ' + e.message, 'error');
     }
 }
 

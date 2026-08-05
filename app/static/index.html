@@ -422,9 +422,12 @@
                 </div>
             </div>
 
-            <!-- Tab 2: 监听 -->
-            <div class="pipeline-tab-content" id="tab-monitor" style="display:none;">
-                <div class="card">
+    <!-- Tab 2: 监听 -->
+    <div class="pipeline-tab-content" id="tab-monitor" style="display:none;">
+        <div class="info-block" style="margin-bottom:12px;">
+            📡 监听方式：通过 <strong>User API (Telethon)</strong>（用户账号/userbot）监听群消息，非 Bot API。需在「连接配置」中完成手机号登录。
+        </div>
+        <div class="card">
                     <div class="card-header collapse-header collapsed" onclick="toggleCollapse(this)">
                         <span class="card-title">监听配置</span>
                         <label class="switch" onclick="event.stopPropagation();">
@@ -468,21 +471,25 @@
                     <div class="card-header collapse-header collapsed" onclick="toggleCollapse(this)">
                         <span class="card-title">监听群列表</span>
                     </div>
-                    <div class="collapse-body collapsed">
-                        <div id="monitor-chats-list" style="margin-bottom:16px;"></div>
-                        <hr>
-                        <div class="form-row">
-                            <div class="form-group">
-                                <label class="form-label">群 Chat ID</label>
-                                <input type="text" class="form-input" id="new-monitor-chat-id" placeholder="-100xxxxxxxxxx">
-                            </div>
-                            <div class="form-group">
-                                <label class="form-label">备注名称</label>
-                                <input type="text" class="form-input" id="new-monitor-chat-name" placeholder="信号群A">
-                            </div>
-                        </div>
-                        <button class="btn btn-primary" onclick="addMonitorChat()">添加监听群</button>
-                    </div>
+        <div class="collapse-body collapsed">
+            <div id="monitor-chats-list" style="margin-bottom:16px;"></div>
+            <hr>
+            <div class="form-row">
+                <div class="form-group">
+                    <label class="form-label">群 Chat ID</label>
+                    <input type="text" class="form-input" id="new-monitor-chat-id" placeholder="-100xxxxxxxxxx">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">话题 ID（可选）</label>
+                    <input type="number" class="form-input" id="new-monitor-chat-topic" placeholder="留空=全部话题">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">备注名称</label>
+                    <input type="text" class="form-input" id="new-monitor-chat-name" placeholder="信号群A">
+                </div>
+            </div>
+            <button class="btn btn-primary" onclick="addMonitorChat()">添加监听群</button>
+        </div>
                 </div>
 
                 <div class="card">

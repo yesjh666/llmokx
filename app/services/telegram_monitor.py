@@ -60,6 +60,8 @@ class TelegramMonitor:
 
         # 注入消息处理器到 client manager
         client_manager.set_message_handler(self._on_message)
+        # 加载话题过滤配置
+        client_manager.set_chat_topics(self._cfg.get("chat_topics", {}))
 
         # 开始监听
         success, msg = await client_manager.start_listening(self._monitored_chats)

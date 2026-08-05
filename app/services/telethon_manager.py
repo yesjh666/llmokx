@@ -39,6 +39,7 @@ class TelethonClientManager:
         self._lock = asyncio.Lock()
         self._message_handler: Optional[Callable] = None
         self._chat_ids: List = []
+        self._chat_topics: dict = {}  # {chat_id_str: topic_id}
         self._event_handler = None
 
         # 登录状态
@@ -518,12 +519,26 @@ class TelethonClientManager:
         await self.stop_listening()
         return await self.start_listening(chat_ids)
 
+    def set_chat_topics(self, topics: dict):
+        """设置群话题过滤映射 {chat_id_str: topic_id}"""
+        self._chat_topics = {str(k): int(v) for k, v in (topics or {}).items() if v}
+
     async def _on_message(self, event):
         """收到消息处理"""
         try:
             chat = await event.get_chat()
             chat_id = str(event.chat_id)
             chat_name = getattr(chat, "title", None) or getattr(chat, "first_name", "未知")
+
+            # 话题过滤：如果该群配置了 topic_id，只接收该话题的消息
+            topic_filter = self._chat_topics.get(chat_id)
+            if topic_filter:
+                msg = event.message
+                reply_to = getattr(msg, "reply_to", None)
+                top_id = getattr(reply_to, "reply_to_top_id", None) if reply_to else None
+                if top_id != topic_filter:
+                    return  # 不是目标话题，跳过
+
             sender = await event.get_sender()
             sender_name = getattr(sender, "first_name", "") or ""
             text = event.message.text or ""

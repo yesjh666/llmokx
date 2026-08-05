@@ -34,10 +34,17 @@ class MonitorConfigUpdate(BaseModel):
 class AddChatRequest(BaseModel):
     chat_id: str
     name: str = ""
+    topic_id: Optional[int] = None
 
 
 class RemoveChatRequest(BaseModel):
     chat_id: str
+
+
+class UpdateChatRequest(BaseModel):
+    chat_id: str
+    name: Optional[str] = None
+    topic_id: Optional[int] = None
 
 
 class UserbotConfigUpdate(BaseModel):
@@ -102,6 +109,7 @@ async def add_chat(req: AddChatRequest):
     monitor_cfg = config.get_section("monitor")
     chat_ids = monitor_cfg.get("chat_ids", [])
     chat_names = monitor_cfg.get("chat_names", {})
+    chat_topics = monitor_cfg.get("chat_topics", {})
 
     if req.chat_id in chat_ids:
         raise HTTPException(status_code=400, detail="该群已在监听列表中")
@@ -109,11 +117,17 @@ async def add_chat(req: AddChatRequest):
     chat_ids.append(req.chat_id)
     if req.name:
         chat_names[req.chat_id] = req.name
+    if req.topic_id:
+        chat_topics[req.chat_id] = req.topic_id
 
     config.update_section("monitor", {
         "chat_ids": chat_ids,
         "chat_names": chat_names,
+        "chat_topics": chat_topics,
     })
+
+    # 同步到 telethon_manager
+    client_manager.set_chat_topics(chat_topics)
 
     # 热更新监听群
     if monitor.is_running():
@@ -122,6 +136,35 @@ async def add_chat(req: AddChatRequest):
             return {"success": True, "message": f"已添加监听群: {req.chat_id}（监听已热更新）"}
 
     return {"success": True, "message": f"已添加监听群: {req.chat_id}"}
+
+
+@router.post("/chats/update")
+async def update_chat(req: UpdateChatRequest):
+    """修改监听群配置（名称/话题）"""
+    monitor_cfg = config.get_section("monitor")
+    chat_ids = monitor_cfg.get("chat_ids", [])
+    chat_names = monitor_cfg.get("chat_names", {})
+    chat_topics = monitor_cfg.get("chat_topics", {})
+
+    if req.chat_id not in chat_ids:
+        raise HTTPException(status_code=404, detail="该群不在监听列表中")
+
+    if req.name is not None:
+        chat_names[req.chat_id] = req.name
+    if req.topic_id is not None:
+        if req.topic_id > 0:
+            chat_topics[req.chat_id] = req.topic_id
+        else:
+            chat_topics.pop(req.chat_id, None)
+
+    config.update_section("monitor", {
+        "chat_names": chat_names,
+        "chat_topics": chat_topics,
+    })
+
+    client_manager.set_chat_topics(chat_topics)
+
+    return {"success": True, "message": "监听群配置已更新"}
 
 
 @router.post("/chats/remove")
