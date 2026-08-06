@@ -113,6 +113,25 @@ def _clean_key(key: str) -> str:
     return cleaned
 
 
+# 配置文件路径（直接读磁盘，绕过缓存）
+_CONFIG_FILE = os.path.join(
+    os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))),
+    "config", "unified-config.json",
+)
+
+
+def _read_api_key_from_disk() -> tuple:
+    """直接从磁盘 JSON 文件读取 api_key 和 api_base（绕过内存缓存）"""
+    try:
+        with open(_CONFIG_FILE, "r", encoding="utf-8-sig") as f:
+            cfg = json.load(f)
+        llm = cfg.get("llm_analysis", {})
+        return llm.get("api_key", ""), llm.get("api_base", "")
+    except Exception as e:
+        logger.warning(f"从磁盘读取api_key失败: {e}")
+        return "", ""
+
+
 class LLMAnalyzer:
     """LLM意图分析器，直接调用大模型API"""
 
@@ -191,8 +210,10 @@ class LLMAnalyzer:
         max_retries = self.config.get("max_retries", 2)
         model = self.config.get("model", "gpt-4o-mini")
         fallback_model = self.config.get("fallback_model", "gpt-3.5-turbo")
-        api_base = self.config.get("api_base", "https://api.openai.com/v1")
-        api_key = self.config.get("api_key", "")
+        # ⚠️ api_key 和 api_base 每次从磁盘直接读取（绕过缓存，保证与保存时一致）
+        disk_key, disk_base = _read_api_key_from_disk()
+        api_key = _clean_key(disk_key) if disk_key else _clean_key(self.config.get("api_key", ""))
+        api_base = (disk_base or "").strip() if disk_base else self.config.get("api_base", "https://api.openai.com/v1")
         thinking = self.config.get("thinking", False)
         global_temp = self.config.get("temperature", 0.3)
 
@@ -587,11 +608,12 @@ class LLMAnalyzer:
             return {"success": False, "error": f"请求异常: {e}"}
 
     async def test_connection(self) -> Dict[str, Any]:
-        """测试主模型连接"""
+        """测试主模型连接（key 从磁盘读取）"""
         self._refresh_config()
+        disk_key, disk_base = _read_api_key_from_disk()
         return await self._test_model(
-            api_base=self.config.get("api_base", ""),
-            api_key=self.config.get("api_key", ""),
+            api_base=disk_base or self.config.get("api_base", ""),
+            api_key=disk_key or self.config.get("api_key", ""),
             model=self.config.get("model", ""),
             thinking=self.config.get("thinking", False),
         )
@@ -609,8 +631,10 @@ class LLMAnalyzer:
         results = []
 
         model = (self.config.get("model", "") or "").strip()
-        api_base = (self.config.get("api_base", "") or "").strip()
-        api_key = (self.config.get("api_key", "") or "").strip()
+        # key 和 base 从磁盘读取
+        disk_key, disk_base = _read_api_key_from_disk()
+        api_key = _clean_key(disk_key) if disk_key else _clean_key(self.config.get("api_key", ""))
+        api_base = (disk_base or "").strip() if disk_base else (self.config.get("api_base", "") or "").strip()
         thinking = self.config.get("thinking", False)
 
         primary = await self._test_model(api_base, api_key, model, thinking)
