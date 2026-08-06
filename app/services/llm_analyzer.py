@@ -367,19 +367,27 @@ class LLMAnalyzer:
         client = self._get_client(timeout)
         resp = await client.post(url, headers=headers, json=body)
 
-        # GLM 401 自动恢复：双策略重试
+        # GLM 401 自动恢复
         if resp.status_code in (401, 403) and _is_glm_api(api_base):
-            jwt_was_used = auth_token != api_key  # JWT was generated
+            jwt_was_used = auth_token != api_key
+
+            # 策略1: JWT失败了 → 尝试原始key直传
             if jwt_was_used:
-                # 策略1: JWT失败了 → 尝试原始key直传（coding plan可能不接受JWT）
                 logger.info("GLM 401: JWT失败，尝试原始key直传")
                 clear_glm_token_cache()
                 headers["Authorization"] = f"Bearer {api_key}"
                 await asyncio.sleep(1)
                 resp = await client.post(url, headers=headers, json=body)
-            else:
-                # 策略2: 原始key失败了 → 等待后重试（GLM瞬时拒绝）
-                logger.info("GLM 401: 原始key被拒，等待2秒后重试")
+
+            # 策略2: coding plan端点401 → 自动切换到标准端点
+            if resp.status_code in (401, 403) and "/coding/" in api_base:
+                fallback_url = url.replace("/coding/paas/v4", "/paas/v4")
+                logger.info(f"GLM 401: coding端点被拒，尝试标准端点 {fallback_url}")
+                resp = await client.post(fallback_url, headers=headers, json=body)
+
+            # 策略3: 原始key失败 → 等待后重试
+            if resp.status_code in (401, 403):
+                logger.info("GLM 401: 等待2秒后重试")
                 await asyncio.sleep(2)
                 resp = await client.post(url, headers=headers, json=body)
 
@@ -501,17 +509,27 @@ class LLMAnalyzer:
             client = self._get_client(30)
             resp = await client.post(url, headers=headers, json=body)
 
-            # GLM 401 自动恢复：双策略重试
+            # GLM 401 自动恢复
             if resp.status_code in (401, 403) and _is_glm_api(api_base):
                 jwt_was_used = auth_token != api_key
+
+                # 策略1: JWT失败 → 原始key直传
                 if jwt_was_used:
                     logger.info("GLM 测试401: JWT失败，尝试原始key直传")
                     clear_glm_token_cache()
                     headers["Authorization"] = f"Bearer {api_key}"
                     await asyncio.sleep(1)
                     resp = await client.post(url, headers=headers, json=body)
-                else:
-                    logger.info("GLM 测试401: 原始key被拒，等待2秒后重试")
+
+                # 策略2: coding端点401 → 标准端点
+                if resp.status_code in (401, 403) and "/coding/" in api_base:
+                    fallback_url = url.replace("/coding/paas/v4", "/paas/v4")
+                    logger.info(f"GLM 测试401: coding端点被拒，尝试标准端点")
+                    resp = await client.post(fallback_url, headers=headers, json=body)
+
+                # 策略3: 等待重试
+                if resp.status_code in (401, 403):
+                    logger.info("GLM 测试401: 等待2秒后重试")
                     await asyncio.sleep(2)
                     resp = await client.post(url, headers=headers, json=body)
 
