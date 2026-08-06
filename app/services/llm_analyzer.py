@@ -121,8 +121,13 @@ class LLMAnalyzer:
         self._model_status: Optional[dict] = None
         self._http_client: Optional[httpx.AsyncClient] = None
 
-    def _get_client(self, timeout: int = 90) -> httpx.AsyncClient:
-        """获取持久化 HTTP 客户端（复用连接池，避免频繁新建连接触发服务端限流）"""
+    def _get_client(self, timeout: int = 90, fresh: bool = False) -> httpx.AsyncClient:
+        """获取 HTTP 客户端。fresh=True 时创建一次性客户端（coding plan 用）"""
+        if fresh:
+            return httpx.AsyncClient(
+                timeout=httpx.Timeout(timeout, connect=10),
+                headers={"User-Agent": "LLMOKX/1.0"},
+            )
         if self._http_client is None or self._http_client.is_closed:
             self._http_client = httpx.AsyncClient(
                 timeout=httpx.Timeout(timeout, connect=10),
@@ -364,32 +369,38 @@ class LLMAnalyzer:
         if thinking is False:
             body["thinking"] = {"type": "disabled"}
 
-        client = self._get_client(timeout)
-        resp = await client.post(url, headers=headers, json=body)
+        # coding plan 端点：每次请求用全新连接（模拟初始状态，避免累积触发限制）
+        is_coding = "/coding/" in api_base
+        if is_coding:
+            clear_glm_token_cache()
 
-        # GLM 401 自动恢复
-        if resp.status_code in (401, 403) and _is_glm_api(api_base):
-            jwt_was_used = auth_token != api_key
+        client = self._get_client(timeout, fresh=is_coding)
+        try:
+            resp = await client.post(url, headers=headers, json=body)
 
-            # 策略1: JWT失败了 → 尝试原始key直传
-            if jwt_was_used:
-                logger.info("GLM 401: JWT失败，尝试原始key直传")
-                clear_glm_token_cache()
-                headers["Authorization"] = f"Bearer {api_key}"
-                await asyncio.sleep(1)
-                resp = await client.post(url, headers=headers, json=body)
+            # GLM 401 自动恢复
+            if resp.status_code in (401, 403) and _is_glm_api(api_base):
+                jwt_was_used = auth_token != api_key
 
-            # 策略2: coding plan端点401 → 自动切换到标准端点
-            if resp.status_code in (401, 403) and "/coding/" in api_base:
-                fallback_url = url.replace("/coding/paas/v4", "/paas/v4")
-                logger.info(f"GLM 401: coding端点被拒，尝试标准端点 {fallback_url}")
-                resp = await client.post(fallback_url, headers=headers, json=body)
+                if jwt_was_used:
+                    logger.info("GLM 401: JWT失败，尝试原始key直传")
+                    clear_glm_token_cache()
+                    headers["Authorization"] = f"Bearer {api_key}"
+                    await asyncio.sleep(1)
+                    resp = await client.post(url, headers=headers, json=body)
 
-            # 策略3: 原始key失败 → 等待后重试
-            if resp.status_code in (401, 403):
-                logger.info("GLM 401: 等待2秒后重试")
-                await asyncio.sleep(2)
-                resp = await client.post(url, headers=headers, json=body)
+                if resp.status_code in (401, 403) and "/coding/" in api_base:
+                    fallback_url = url.replace("/coding/paas/v4", "/paas/v4")
+                    logger.info(f"GLM 401: coding端点被拒，尝试标准端点")
+                    resp = await client.post(fallback_url, headers=headers, json=body)
+
+                if resp.status_code in (401, 403):
+                    logger.info("GLM 401: 等待2秒后重试")
+                    await asyncio.sleep(2)
+                    resp = await client.post(url, headers=headers, json=body)
+        finally:
+            if is_coding:
+                await client.aclose()
 
         if resp.status_code != 200:
             error_detail = ""
@@ -506,32 +517,36 @@ class LLMAnalyzer:
             body["thinking"] = {"type": "disabled"}
 
         try:
-            client = self._get_client(30)
-            resp = await client.post(url, headers=headers, json=body)
+            is_coding = "/coding/" in api_base
+            if is_coding:
+                clear_glm_token_cache()
+            client = self._get_client(30, fresh=is_coding)
+            try:
+                resp = await client.post(url, headers=headers, json=body)
 
-            # GLM 401 自动恢复
-            if resp.status_code in (401, 403) and _is_glm_api(api_base):
-                jwt_was_used = auth_token != api_key
+                # GLM 401 自动恢复
+                if resp.status_code in (401, 403) and _is_glm_api(api_base):
+                    jwt_was_used = auth_token != api_key
 
-                # 策略1: JWT失败 → 原始key直传
-                if jwt_was_used:
-                    logger.info("GLM 测试401: JWT失败，尝试原始key直传")
-                    clear_glm_token_cache()
-                    headers["Authorization"] = f"Bearer {api_key}"
-                    await asyncio.sleep(1)
-                    resp = await client.post(url, headers=headers, json=body)
+                    if jwt_was_used:
+                        logger.info("GLM 测试401: JWT失败，尝试原始key直传")
+                        clear_glm_token_cache()
+                        headers["Authorization"] = f"Bearer {api_key}"
+                        await asyncio.sleep(1)
+                        resp = await client.post(url, headers=headers, json=body)
 
-                # 策略2: coding端点401 → 标准端点
-                if resp.status_code in (401, 403) and "/coding/" in api_base:
-                    fallback_url = url.replace("/coding/paas/v4", "/paas/v4")
-                    logger.info(f"GLM 测试401: coding端点被拒，尝试标准端点")
-                    resp = await client.post(fallback_url, headers=headers, json=body)
+                    if resp.status_code in (401, 403) and "/coding/" in api_base:
+                        fallback_url = url.replace("/coding/paas/v4", "/paas/v4")
+                        logger.info(f"GLM 测试401: coding端点被拒，尝试标准端点")
+                        resp = await client.post(fallback_url, headers=headers, json=body)
 
-                # 策略3: 等待重试
-                if resp.status_code in (401, 403):
-                    logger.info("GLM 测试401: 等待2秒后重试")
-                    await asyncio.sleep(2)
-                    resp = await client.post(url, headers=headers, json=body)
+                    if resp.status_code in (401, 403):
+                        logger.info("GLM 测试401: 等待2秒后重试")
+                        await asyncio.sleep(2)
+                        resp = await client.post(url, headers=headers, json=body)
+            finally:
+                if is_coding:
+                    await client.aclose()
 
             if resp.status_code == 200:
                 data = resp.json()
