@@ -15,6 +15,7 @@ class ForwardTarget(BaseModel):
     channel: str = "openclaw-telegram"
     target: str = ""
     description: str = ""
+    topic_id: Optional[int] = None
 
 
 class UpdateForwardConfigRequest(BaseModel):

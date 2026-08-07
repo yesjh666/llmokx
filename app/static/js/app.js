@@ -782,17 +782,20 @@ async function loadForwardTargets() {
             container.innerHTML = '<div class="empty-state"><div class="empty-icon">📤</div><div>暂无转发目标</div></div>';
             return;
         }
-        container.innerHTML = targets.map((t, i) => `
+        container.innerHTML = targets.map((t, i) => {
+            const topicTag = t.topic_id ? ` <span class="badge badge-info">话题${t.topic_id}</span>` : '';
+            return `
             <div class="list-item">
                 <div class="list-item-content">
-                    <div><strong>${escapeHtml(t.description || '未命名')}</strong></div>
+                    <div><strong>${escapeHtml(t.description || '未命名')}</strong> ${topicTag}</div>
                     <div style="font-size:12px;color:#6b7280;">通道: ${escapeHtml(t.channel)} | 目标: ${escapeHtml(t.target)}</div>
                 </div>
                 <div class="list-item-actions">
                     <button class="btn btn-sm btn-primary" onclick="testForwardTarget(${i})">测试</button>
                     <button class="btn btn-sm btn-danger" onclick="deleteForwardTarget(${i})">删除</button>
                 </div>
-            </div>`).join('');
+            </div>`;
+        }).join('');
     } catch (e) {
         toast('加载转发目标失败: ' + e.message, 'error');
     }
@@ -816,17 +819,20 @@ async function saveForwardConfig() {
 }
 
 async function addForwardTarget() {
+    const topicStr = document.getElementById('new-target-topic').value.trim();
     const data = {
         channel: document.getElementById('new-target-channel').value,
         target: document.getElementById('new-target-id').value.trim(),
         description: document.getElementById('new-target-desc').value.trim(),
     };
+    if (topicStr) data.topic_id = parseInt(topicStr);
     if (!data.target) { toast('请填写目标ID', 'error'); return; }
     try {
         await api('/api/forward/targets', { method: 'POST', body: JSON.stringify(data) });
         toast('转发目标已添加', 'success');
         document.getElementById('new-target-id').value = '';
         document.getElementById('new-target-desc').value = '';
+        document.getElementById('new-target-topic').value = '';
         loadForwardTargets();
     } catch (e) {
         toast('添加失败: ' + e.message, 'error');

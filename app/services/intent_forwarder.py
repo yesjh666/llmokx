@@ -262,6 +262,7 @@ class IntentForwarder:
         """发送消息到指定目标"""
         channel = target_config.get("channel", "telegram")
         target = target_config.get("target")
+        topic_id = target_config.get("topic_id")
 
         if not target:
             return False, "目标未配置"
@@ -272,7 +273,7 @@ class IntentForwarder:
             try:
                 from app.services.telethon_manager import client_manager
                 if client_manager._authorized:
-                    success, info = await self._send_via_userbot(target, msg)
+                    success, info = await self._send_via_userbot(target, msg, topic_id)
                     if success:
                         return True, f"Userbot: {info}"
                     logger.warning(f"Userbot发送失败: {info}")
@@ -284,19 +285,17 @@ class IntentForwarder:
             # 降级: Bot API 发送
             bot_token = self.config.get("telegram_bot_token", "")
             if bot_token:
-                return await self._send_via_bot_api(bot_token, target, msg)
+                return await self._send_via_bot_api(bot_token, target, msg, topic_id)
 
             return False, "Userbot未登录且未配置Bot Token"
 
         elif channel in ("wechat", "openclaw-weixin"):
-            # 微信通道通过 openclaw 命令发送
             return await self._send_via_openclaw(channel, target, msg)
 
         else:
-            # 其他通道
             return await self._send_via_openclaw(channel, target, msg)
 
-    async def _send_via_bot_api(self, bot_token: str, chat_id: str, text: str) -> tuple:
+    async def _send_via_bot_api(self, bot_token: str, chat_id: str, text: str, topic_id: int = None) -> tuple:
         """通过 Telegram Bot API 发送"""
         url = f"https://api.telegram.org/bot{bot_token}/sendMessage"
         data = {
@@ -304,6 +303,8 @@ class IntentForwarder:
             "text": text,
             "parse_mode": "HTML",
         }
+        if topic_id:
+            data["message_thread_id"] = topic_id
         try:
             async with httpx.AsyncClient(timeout=15) as client:
                 resp = await client.post(url, json=data)
@@ -314,7 +315,7 @@ class IntentForwarder:
         except Exception as e:
             return False, f"Bot API异常: {e}"
 
-    async def _send_via_userbot(self, chat_id, text: str) -> tuple:
+    async def _send_via_userbot(self, chat_id, text: str, topic_id: int = None) -> tuple:
         """通过 Telegram Userbot 发送（复用统一 client_manager）"""
         from app.services.telethon_manager import client_manager
 
@@ -322,7 +323,7 @@ class IntentForwarder:
             return False, "Userbot 未登录"
 
         try:
-            result = await client_manager.send_message(chat_id, text, parse_mode="html")
+            result = await client_manager.send_message(chat_id, text, parse_mode="html", reply_to=topic_id)
             if not result[0]:
                 logger.error(f"Userbot 发送到 {chat_id} 失败: {result[1]}")
             return result

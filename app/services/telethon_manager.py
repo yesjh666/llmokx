@@ -419,8 +419,8 @@ class TelethonClientManager:
 
     # ==================== 发送消息 ====================
 
-    async def send_message(self, chat_id, text: str, parse_mode: str = "html") -> Tuple[bool, str]:
-        """发送消息"""
+    async def send_message(self, chat_id, text: str, parse_mode: str = "html", reply_to: int = None) -> Tuple[bool, str]:
+        """发送消息（可选 reply_to 发送到指定话题）"""
         success, msg = await self.ensure_connected()
         if not success:
             return False, msg
@@ -453,7 +453,10 @@ class TelethonClientManager:
                     except Exception:
                         return False, f"无法找到群 {target_id}，请确认 Userbot 账号已加入该群"
 
-            await self._client.send_message(entity, text, parse_mode=parse_mode)
+            kwargs = {"parse_mode": parse_mode}
+            if reply_to:
+                kwargs["reply_to"] = reply_to
+            await self._client.send_message(entity, text, **kwargs)
             return True, "发送成功"
         except Exception as e:
             return False, f"发送失败: {e}"
