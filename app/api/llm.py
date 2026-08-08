@@ -135,6 +135,9 @@ async def update_config(req: UpdateConfigRequest):
     if "api_key" in data and data["api_key"]:
         llm_analyzer._save_api_key_to_private_file(data["api_key"])
     success = config.update_section("llm_analysis", data)
+    # 保存后强制重新加载磁盘配置（同步缓存与磁盘）
+    if success:
+        config.reload_config()
     return {"success": success, "message": "配置已更新" if success else "更新失败"}
 
 
@@ -147,12 +150,12 @@ async def test_connection():
 
 @router.get("/debug-key")
 async def debug_key():
-    """诊断 API Key：对比缓存 vs 磁盘，直接测试"""
+    """诊断 API Key：对比缓存 vs 磁盘 vs .api_key，直接测试"""
     import hashlib
     import os
     import json as _json
 
-    def _fingerprint(key):
+    def _fp(key):
         if not key:
             return {"len": 0, "hash": "(empty)", "preview": "(empty)", "has_dot": False}
         return {
@@ -160,15 +163,13 @@ async def debug_key():
             "hash": hashlib.md5(key.encode()).hexdigest()[:8],
             "preview": key[:4] + "*" * 4 + key[-4:] if len(key) > 8 else "***",
             "has_dot": "." in key,
-            "repr": repr(key[:20]),
         }
 
     # 1. 从缓存读取
     cached_cfg = config.get_section("llm_analysis")
     cached_key = cached_cfg.get("api_key", "")
-    cached_base = cached_cfg.get("api_base", "")
 
-    # 2. 从磁盘直接读取（绕过缓存）
+    # 2. 从 unified-config.json 读取
     config_file = os.path.join(
         os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))),
         "config", "unified-config.json"
@@ -182,23 +183,29 @@ async def debug_key():
     except Exception as e:
         disk_error = str(e)
 
-    # 3. 对比
-    match = cached_key == disk_key
-
-    # 4. 清理后对比
-    from app.services.llm_analyzer import _clean_key
-    cached_cleaned = _clean_key(cached_key)
-    disk_cleaned = _clean_key(disk_key)
+    # 3. 从 .api_key 独立文件读取
+    api_key_file = os.path.join(
+        os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))),
+        "config", ".api_key"
+    )
+    private_key = ""
+    private_exists = os.path.exists(api_key_file)
+    if private_exists:
+        try:
+            with open(api_key_file, "r", encoding="utf-8-sig") as f:
+                private_key = f.read().strip()
+        except Exception:
+            pass
 
     return {
-        "cache": _fingerprint(cached_key),
-        "disk": _fingerprint(disk_key),
-        "cache_cleaned": _fingerprint(cached_cleaned),
-        "disk_cleaned": _fingerprint(disk_cleaned),
-        "cache_disk_match": match,
-        "cleaned_match": cached_cleaned == disk_cleaned,
-        "api_base": cached_base,
+        "cache": _fp(cached_key),
+        "disk": _fp(disk_key),
+        "private_file": _fp(private_key),
+        "private_file_exists": private_exists,
+        "cache_disk_match": cached_key == disk_key,
+        "cache_private_match": cached_key == private_key,
         "disk_error": disk_error,
+        "api_base": cached_cfg.get("api_base", ""),
     }
 
 

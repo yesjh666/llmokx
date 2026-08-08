@@ -237,15 +237,20 @@ async function testLLMConnection() {
 async function debugKey() {
     try {
         const d = await api('/api/llm/debug-key');
-        let msg = '🔍 API Key 诊断\n\n';
-        msg += `缓存: 长度=${d.cache.len} 指纹=${d.cache.hash} 含dot=${d.cache.has_dot}\n`;
-        msg += `磁盘: 长度=${d.disk.len} 指纹=${d.disk.hash} 含dot=${d.disk.has_dot}\n`;
-        msg += `清理后缓存: 长度=${d.cache_cleaned.len} 指纹=${d.cache_cleaned.hash}\n`;
-        msg += `清理后磁盘: 长度=${d.disk_cleaned.len} 指纹=${d.disk_cleaned.hash}\n`;
-        msg += `\n缓存==磁盘: ${d.cache_disk_match ? '✅一致' : '❌不一致！'}\n`;
-        msg += `清理后一致: ${d.cleaned_match ? '✅' : '❌'}\n`;
-        if (d.disk_error) msg += `磁盘读取错误: ${d.disk_error}\n`;
-        if (d.cache.repr !== d.disk.repr) msg += `\n⚠️ repr不同！\n缓存: ${d.cache.repr}\n磁盘: ${d.disk.repr}\n`;
+        let msg = '🔍 API Key 三源诊断\n\n';
+        msg += `📁 .api_key文件: ${d.private_file_exists ? '✅存在' : '❌不存在'}\n`;
+        msg += `  长度=${d.private_file.len} 指纹=${d.private_file.hash} dot=${d.private_file.has_dot}\n\n`;
+        msg += `💾 unified-config.json:\n`;
+        msg += `  长度=${d.disk.len} 指纹=${d.disk.hash} dot=${d.disk.has_dot}\n\n`;
+        msg += `📦 内存缓存:\n`;
+        msg += `  长度=${d.cache.len} 指纹=${d.cache.hash} dot=${d.cache.has_dot}\n\n`;
+        msg += `缓存==磁盘: ${d.cache_disk_match ? '✅' : '❌不一致'}\n`;
+        msg += `缓存==.api_key: ${d.cache_private_match ? '✅' : '❌不一致'}\n`;
+        if (d.disk_error) msg += `磁盘错误: ${d.disk_error}\n`;
+        msg += `\n端点: ${d.api_base}\n`;
+        if (d.private_file.len > 0 && d.cache.len > 0 && d.private_file.hash !== d.cache.hash) {
+            msg += '\n⚠️ 缓存被污染！.api_key 是正确的（LLM调用优先用它）';
+        }
         alert(msg);
     } catch (e) {
         toast('诊断失败: ' + e.message, 'error');
