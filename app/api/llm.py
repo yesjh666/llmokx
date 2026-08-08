@@ -131,6 +131,9 @@ async def update_config(req: UpdateConfigRequest):
     # 清除 GLM JWT 缓存，下次调用自动用新 key 生成 token
     if "api_key" in data or "api_base" in data:
         llm_analyzer.clear_glm_token_cache()
+    # api_key 同时保存到独立文件（防止被其他 config.save_config 覆盖）
+    if "api_key" in data and data["api_key"]:
+        llm_analyzer._save_api_key_to_private_file(data["api_key"])
     success = config.update_section("llm_analysis", data)
     return {"success": success, "message": "配置已更新" if success else "更新失败"}
 

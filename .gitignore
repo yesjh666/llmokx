@@ -42,3 +42,6 @@ config/*.session-journal
 # OS
 .DS_Store
 Thumbs.db
+
+# API Key independent storage
+config/.api_key

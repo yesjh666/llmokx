@@ -113,23 +113,46 @@ def _clean_key(key: str) -> str:
     return cleaned
 
 
-# 配置文件路径（直接读磁盘，绕过缓存）
-_CONFIG_FILE = os.path.join(
+# 配置文件路径
+_CONFIG_DIR = os.path.join(
     os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))),
-    "config", "unified-config.json",
+    "config",
 )
+_CONFIG_FILE = os.path.join(_CONFIG_DIR, "unified-config.json")
+_API_KEY_FILE = os.path.join(_CONFIG_DIR, ".api_key")
+
+
+def _save_api_key_to_private_file(key: str):
+    """将 api_key 单独保存到 .api_key 文件（防止被 config.save_config 覆盖）"""
+    try:
+        with open(_API_KEY_FILE, "w", encoding="utf-8") as f:
+            f.write(key)
+    except Exception as e:
+        logger.warning(f"保存 .api_key 失败: {e}")
 
 
 def _read_api_key_from_disk() -> tuple:
-    """直接从磁盘 JSON 文件读取 api_key 和 api_base（绕过内存缓存）"""
+    """读取 api_key 和 api_base（优先从 .api_key 独立文件读取）"""
+    api_key = ""
+    api_base = ""
+    # 1. 优先从独立文件读取 api_key（不被任何其他操作覆盖）
+    try:
+        if os.path.exists(_API_KEY_FILE):
+            with open(_API_KEY_FILE, "r", encoding="utf-8-sig") as f:
+                api_key = f.read().strip()
+    except Exception:
+        pass
+    # 2. 从统一配置读取（api_base + 兜底 api_key）
     try:
         with open(_CONFIG_FILE, "r", encoding="utf-8-sig") as f:
             cfg = json.load(f)
         llm = cfg.get("llm_analysis", {})
-        return llm.get("api_key", ""), llm.get("api_base", "")
+        if not api_key:
+            api_key = llm.get("api_key", "")
+        api_base = llm.get("api_base", "")
     except Exception as e:
-        logger.warning(f"从磁盘读取api_key失败: {e}")
-        return "", ""
+        logger.warning(f"从磁盘读取配置失败: {e}")
+    return api_key, api_base
 
 
 class LLMAnalyzer:
