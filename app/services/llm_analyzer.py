@@ -72,7 +72,7 @@ def _get_glm_token(api_key: str) -> str:
     payload = _b64url(json.dumps({
         "api_key": key_id,
         "exp": exp_ms,
-        "timestamp": str(now_ms),
+        "timestamp": now_ms,
     }).encode())
     msg = f"{header}.{payload}"
     sig = hmac.new(secret.encode(), msg.encode(), hashlib.sha256).digest()
