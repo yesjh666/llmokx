@@ -57,14 +57,18 @@ async def auth_middleware(request: Request, call_next):
 
     # 检查 Basic Auth
     auth_header = request.headers.get("Authorization", "")
-    if auth_header.startswith("Basic "):
+    if auth_header[:6].lower() == "basic ":
         try:
             decoded = base64.b64decode(auth_header[6:]).decode("utf-8")
             username, password = decoded.split(":", 1)
-            if username == server_cfg.get("username", "admin") and password == server_cfg.get("password", "admin123"):
+            cfg_user = server_cfg.get("username", "admin")
+            cfg_pwd = server_cfg.get("password", "admin123")
+            if username == cfg_user and password == cfg_pwd:
                 return await call_next(request)
-        except Exception:
-            pass
+            else:
+                logger.warning(f"认证失败: 用户名或密码错误 (input_user={username}, cfg_user={cfg_user}, pwd_match={password == cfg_pwd})")
+        except Exception as e:
+            logger.warning(f"认证解析异常: {e}")
 
     # 返回 401，浏览器自动弹出登录框
     if path.startswith("/api/"):
