@@ -50,6 +50,38 @@ vim config/unified-config.json
 python run.py
 ```
 
+## 服务管理（systemd）
+
+安装脚本会注册 systemd 服务，常用命令：
+
+```bash
+# 启动服务
+systemctl start llmokx
+
+# 停止服务
+systemctl stop llmokx
+
+# 重启服务（修改配置后执行）
+systemctl restart llmokx
+
+# 查看运行状态
+systemctl status llmokx
+
+# 设置开机自启
+systemctl enable llmokx
+
+# 取消开机自启
+systemctl disable llmokx
+
+# 查看实时日志
+journalctl -u llmokx -f
+
+# 查看最近100行日志
+journalctl -u llmokx -n 100
+```
+
+也可以在 Web 界面的「升级管理」页点击「重启服务」按钮重启。
+
 ## 访问 Web 界面
 
 启动后访问 `http://服务器IP:8080`
