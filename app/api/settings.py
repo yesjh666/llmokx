@@ -73,9 +73,10 @@ async def get_status():
 @router.get("/all-config")
 async def get_all_config():
     """获取所有配置（API Key脱敏）"""
-    all_cfg = config.load_config()
+    import copy
+    all_cfg = copy.deepcopy(config.load_config())  # 深拷贝！不能修改缓存原件
 
-    # 脱敏处理
+    # 脱敏处理（只改副本，不影响内存缓存）
     if "llm_analysis" in all_cfg and all_cfg["llm_analysis"].get("api_key"):
         ak = all_cfg["llm_analysis"]["api_key"]
         all_cfg["llm_analysis"]["api_key"] = ak[:8] + "****" + ak[-4:] if len(ak) > 12 else "****"

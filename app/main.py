@@ -61,8 +61,8 @@ async def auth_middleware(request: Request, call_next):
         try:
             decoded = base64.b64decode(auth_header[6:]).decode("utf-8")
             username, password = decoded.split(":", 1)
-            cfg_user = server_cfg.get("username", "admin")
-            cfg_pwd = server_cfg.get("password", "admin123")
+            cfg_user = server_cfg.get("username") or "admin"
+            cfg_pwd = server_cfg.get("password") or "admin123"
             if username == cfg_user and password == cfg_pwd:
                 return await call_next(request)
             else:
