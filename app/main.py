@@ -4,11 +4,12 @@ LLMOKX 交易工具 - FastAPI主应用
 """
 import os
 import time
+import base64
 import logging
 
 from fastapi import FastAPI, Request
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import HTMLResponse, FileResponse
+from fastapi.responses import HTMLResponse, FileResponse, JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 
 from app import config
@@ -41,6 +42,34 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# 认证中间件（HTTP Basic Auth）
+@app.middleware("http")
+async def auth_middleware(request: Request, call_next):
+    server_cfg = config.get_section("server")
+    if not server_cfg.get("auth_enabled", False):
+        return await call_next(request)
+
+    # 不需要认证的路径
+    path = request.url.path
+    if path.startswith("/static/") or path == "/api/health":
+        return await call_next(request)
+
+    # 检查 Basic Auth
+    auth_header = request.headers.get("Authorization", "")
+    if auth_header.startswith("Basic "):
+        try:
+            decoded = base64.b64decode(auth_header[6:]).decode("utf-8")
+            username, password = decoded.split(":", 1)
+            if username == server_cfg.get("username", "admin") and password == server_cfg.get("password", "admin123"):
+                return await call_next(request)
+        except Exception:
+            pass
+
+    # 返回 401，浏览器自动弹出登录框
+    if path.startswith("/api/"):
+        return JSONResponse(status_code=401, content={"detail": "需要认证"}, headers={"WWW-Authenticate": 'Basic realm="LLMOKX"'})
+    return HTMLResponse(status_code=401, content="<h1>401 需要登录</h1>", headers={"WWW-Authenticate": 'Basic realm="LLMOKX"'})
 
 # 静态文件
 STATIC_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "static")
