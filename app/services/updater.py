@@ -451,6 +451,12 @@ def perform_git_update(progress_cb: Optional[Callable[[int], None]] = None) -> D
         if progress_cb:
             progress_cb(10)
 
+        # 先丢弃本地修改（version.txt 等运行时生成的文件变更）
+        subprocess.run(
+            ["git", "checkout", "--", "."],
+            cwd=_BASE_DIR, capture_output=True, text=True, timeout=30,
+        )
+
         result = subprocess.run(
             ["git", "pull", "origin"],
             cwd=_BASE_DIR,
