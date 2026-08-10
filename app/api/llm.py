@@ -229,6 +229,11 @@ async def refresh_model_status():
 async def get_prompts():
     """获取prompt配置"""
     prompts = prompt_manager.load_prompts()
+    # 修复 system_prompt 中的字面量 \n（转为真实换行）
+    sp = prompts.get("system_prompt", "")
+    if sp and "\\n" in sp:
+        prompts["system_prompt"] = sp.replace("\\n", "\n")
+        prompt_manager.save_prompts(prompts)  # 持久化修复
     stats = prompt_manager.get_stats()
     return {"prompts": prompts, "stats": stats}
 
@@ -399,6 +404,10 @@ async def assistant_chat(req: AssistantChatRequest):
 async def update_system_prompt(req: UpdateSystemPromptRequest):
     """更新 System Prompt（AI助手应用建议时调用）"""
     prompts = prompt_manager.load_prompts()
-    prompts["system_prompt"] = req.system_prompt
+    # 统一换行：字面量 \n 转为真实换行
+    sp = req.system_prompt
+    if "\\n" in sp:
+        sp = sp.replace("\\n", "\n")
+    prompts["system_prompt"] = sp
     ok = prompt_manager.save_prompts(prompts)
     return {"success": ok, "message": "System Prompt 已更新" if ok else "更新失败"}
