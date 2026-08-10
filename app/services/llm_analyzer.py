@@ -523,10 +523,14 @@ class LLMAnalyzer:
         except json.JSONDecodeError as e:
             return None, f"JSON解析失败: {e}"
 
-        # 处理多意图格式
-        intents_list = result.get("intents", [])
-        if not intents_list:
-            # 兼容单意图格式
+        # 优先单意图格式（直接是意图对象）
+        if "intent" in result:
+            intents_list = [result]
+        elif "intents" in result:
+            intents_list = result["intents"]
+            if isinstance(intents_list, dict):
+                intents_list = [intents_list]
+        else:
             intents_list = [result]
 
         return intents_list, None

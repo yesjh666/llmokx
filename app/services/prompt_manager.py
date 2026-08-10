@@ -170,7 +170,7 @@ def build_prompt(text: str, context_str: str = "无持仓无挂单") -> str:
         parts.append(f"规则:\n{rules_section}\n")
 
     if format_section:
-        parts.append(f"返回JSON格式(只返回JSON,无其他文字):\n{{\n  \"intents\": [\n{format_section}\n  ]\n}}\n")
+        parts.append(f"返回JSON格式(只返回单个意图JSON,无其他文字,不要intents数组):\n{format_section}\n")
 
     if examples_section:
         parts.append(f"示例参考:{examples_section}\n")
