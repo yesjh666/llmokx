@@ -2045,11 +2045,11 @@ function hideLearnModal() {
 
 const _LEARN_TEMPLATES = {
     chat: [{ intent: "chat", symbol: "BTC-USDT", direction: null, params: {}, confidence: 0.95 }],
-    open_position: [{ intent: "open_position", symbol: "BTC-USDT", direction: "long", params: { orders: [{ price: 0, type: "limit", leverage: 100, margin_pct: 0.02 }], take_profit: [0], stop_loss: 0 }, confidence: 0.9 }],
-    close_position: [{ intent: "close_position", symbol: "BTC-USDT", direction: "long", params: { close_ratio: 0.7, move_breakeven: false }, confidence: 0.9 }],
-    cancel_orders: [{ intent: "cancel_orders", symbol: "BTC-USDT", direction: null, params: {}, confidence: 0.9 }],
-    modify_tp: [{ intent: "modify_tp", symbol: "BTC-USDT", direction: null, params: { take_profit: [0] }, confidence: 0.9 }],
-    modify_sl: [{ intent: "modify_sl", symbol: "BTC-USDT", direction: null, params: { stop_loss: 0 }, confidence: 0.9 }],
+    open_position: [{ intent: "open_position", symbol: "BTC-USDT-SWAP", direction: "long", params: { orders: [{ type: "market", leverage: 5, margin_pct: 0.1 }], stop_loss: 105000, take_profit: [110000], move_breakeven: true }, confidence: 0.9 }],
+    close_position: [{ intent: "close_position", symbol: "BTC-USDT-SWAP", direction: "long", params: { close_ratio: 0.5 }, confidence: 0.9 }],
+    cancel_orders: [{ intent: "cancel_orders", symbol: "BTC-USDT-SWAP", direction: null, params: { cancel_type: "symbol" }, confidence: 0.9 }],
+    modify_tp: [{ intent: "modify_tp", symbol: "BTC-USDT-SWAP", direction: null, params: { new_tp: 112000 }, confidence: 0.9 }],
+    modify_sl: [{ intent: "modify_sl", symbol: "BTC-USDT-SWAP", direction: null, params: { new_sl: 105000 }, confidence: 0.9 }],
 };
 
 function fillLearnTemplate(key) {

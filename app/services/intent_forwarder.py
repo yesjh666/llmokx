@@ -197,8 +197,8 @@ class IntentForwarder:
             "intent": intent,
             "symbol": symbol,
             "direction": direction,
-            "confidence": confidence,
             "params": {},
+            "auto_filled": [],
         }
 
         # 根据意图填充params
@@ -220,10 +220,14 @@ class IntentForwarder:
             sl = params.get("stop_loss")
             if sl:
                 signal_data["params"]["stop_loss"] = sl
+            else:
+                signal_data["auto_filled"].append("stop_loss")
 
             tp_list = params.get("take_profit", [])
             if tp_list:
                 signal_data["params"]["take_profit"] = tp_list
+            else:
+                signal_data["auto_filled"].append("take_profit")
 
             if params.get("move_breakeven", False):
                 signal_data["params"]["move_breakeven"] = True
@@ -236,17 +240,28 @@ class IntentForwarder:
                 signal_data["params"]["move_breakeven"] = True
 
         elif intent == "cancel_orders":
-            signal_data["params"]["cancel_type"] = params.get("cancel_type", "all")
+            cancel_type = params.get("cancel_type", "all")
+            signal_data["params"]["cancel_type"] = cancel_type
 
         elif intent == "modify_tp":
-            tp_list = params.get("take_profit", [])
-            if tp_list:
+            tp_list = params.get("take_profit") or params.get("new_tp", [])
+            if isinstance(tp_list, list) and tp_list:
                 signal_data["params"]["new_tp"] = tp_list
+            elif tp_list:
+                signal_data["params"]["new_tp"] = [tp_list]
 
         elif intent == "modify_sl":
-            sl = params.get("stop_loss")
+            sl = params.get("stop_loss") or params.get("new_sl")
             if sl:
                 signal_data["params"]["new_sl"] = sl
+
+        elif intent == "conditional_modify_tp":
+            trigger = params.get("trigger_price")
+            if trigger:
+                signal_data["params"]["trigger_price"] = trigger
+            target_tp = params.get("target_tp") or params.get("take_profit", [])
+            if target_tp:
+                signal_data["params"]["target_tp"] = target_tp if isinstance(target_tp, list) else [target_tp]
 
         elif intent == "conditional_close_position":
             trigger = params.get("trigger_price")
