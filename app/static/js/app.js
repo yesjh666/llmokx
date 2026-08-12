@@ -745,6 +745,26 @@ async function loadPipelineStatus() {
 
         document.getElementById('btn-monitor-start').disabled = data.running;
         document.getElementById('btn-monitor-stop').disabled = !data.running;
+
+        // 渲染去重记录
+        const dedupEl = document.getElementById('dedup-events-list');
+        if (dedupEl) {
+            const events = s.dedup_events || [];
+            if (events.length === 0) {
+                dedupEl.innerHTML = '<div style="text-align:center;color:#6b7280;padding:16px;">暂无去重记录</div>';
+            } else {
+                dedupEl.innerHTML = events.map(e => {
+                    const icon = e.type === 'message' ? '📝' : '🎯';
+                    const tag = e.type === 'message'
+                        ? '<span class="badge badge-warning">消息去重</span>'
+                        : '<span class="badge badge-info">意图去重</span>';
+                    return `<div style="padding:6px 8px;border-bottom:1px solid #1e1e24;font-size:13px;">
+                        <span style="color:#6b7280;">${e.time}</span> ${tag}
+                        <span style="color:#e4e4e7;margin-left:4px;">${escapeHtml(e.text)}</span>
+                    </div>`;
+                }).join('');
+            }
+        }
     } catch (e) {
         toast('加载状态失败: ' + e.message, 'error');
     }

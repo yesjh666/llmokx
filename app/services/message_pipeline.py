@@ -64,7 +64,8 @@ class MessagePipeline:
         self._llm_semaphore = asyncio.Semaphore(self.MAX_CONCURRENT_LLM)
         self._cache: OrderedDict = OrderedDict()
         self._msg_dedup_cache: OrderedDict = OrderedDict()
-        self._intent_dedup_cache: OrderedDict = OrderedDict()  # "intent:symbol" -> timestamp
+        self._intent_dedup_cache: OrderedDict = OrderedDict()
+        self._dedup_events: list = []  # 最近去重记录
 
     def _get_cache_key(self, text: str) -> str:
         """生成缓存 key"""
@@ -88,6 +89,7 @@ class MessagePipeline:
         if key in self._msg_dedup_cache:
             self._msg_dedup_cache.move_to_end(key)
             logger.info(f"[去重] 命中重复消息 (chat={source_chat_id}): 「{normalized[:60]}」")
+            self._add_dedup_event("message", normalized[:80], source_chat_id)
             return True
 
         self._msg_dedup_cache[key] = now
@@ -112,6 +114,8 @@ class MessagePipeline:
 
         if key in self._intent_dedup_cache:
             self._intent_dedup_cache.move_to_end(key)
+            logger.info(f"[意图去重] 跳过重复意图: {intent} {symbol}")
+            self._add_dedup_event("intent", f"{intent} {symbol}", "")
             return True
 
         self._intent_dedup_cache[key] = now
@@ -354,9 +358,22 @@ class MessagePipeline:
 
         return "\n".join(lines)
 
+    def _add_dedup_event(self, event_type: str, text: str, source: str):
+        """记录去重事件（保留最近50条）"""
+        self._dedup_events.append({
+            "time": time.strftime("%H:%M:%S"),
+            "type": event_type,
+            "text": text,
+            "source": source,
+        })
+        if len(self._dedup_events) > 50:
+            self._dedup_events = self._dedup_events[-50:]
+
     def get_stats(self) -> Dict[str, Any]:
         """获取管道统计"""
-        return dict(self._stats)
+        result = dict(self._stats)
+        result["dedup_events"] = list(reversed(self._dedup_events[-20:]))
+        return result
 
 
 # 全局单例
