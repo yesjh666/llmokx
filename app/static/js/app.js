@@ -772,6 +772,9 @@ async function loadForwardConfig() {
         document.getElementById('forward-skip-intents').value = (cfg.skip_intents || ['chat', 'query']).join(', ');
         document.getElementById('forward-force-full-close').checked = cfg.force_full_close === true;
         document.getElementById('forward-close-threshold').value = cfg.force_close_threshold ?? 0.5;
+        const setOr = (id, val, def) => { const el = document.getElementById(id); if (el) el.value = val ?? def; };
+        setOr('forward-auto-sl', cfg.auto_sl_ratio, 0.03);
+        setOr('forward-auto-tp', cfg.auto_tp_ratio, 0.05);
         await loadForwardTargets();
     } catch (e) {
         toast('加载转发配置失败: ' + e.message, 'error');
@@ -814,6 +817,8 @@ async function saveForwardConfig() {
         skip_intents: skipStr ? skipStr.split(',').map(s => s.trim()) : [],
         force_full_close: document.getElementById('forward-force-full-close').checked,
         force_close_threshold: parseFloat(document.getElementById('forward-close-threshold').value),
+        auto_sl_ratio: parseFloat(document.getElementById('forward-auto-sl')?.value || 0.03),
+        auto_tp_ratio: parseFloat(document.getElementById('forward-auto-tp')?.value || 0.05),
     };
     try {
         await api('/api/forward/config', { method: 'PUT', body: JSON.stringify(data) });

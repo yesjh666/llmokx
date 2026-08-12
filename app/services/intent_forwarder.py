@@ -217,15 +217,38 @@ class IntentForwarder:
                     formatted_orders.append(order_dict)
                 signal_data["params"]["orders"] = formatted_orders
 
+            # 获取进场价（用于计算止损止盈）
+            entry_price = None
+            if orders:
+                entry_price = orders[0].get("price")
+
             sl = params.get("stop_loss")
             if sl:
                 signal_data["params"]["stop_loss"] = sl
+            elif entry_price:
+                # 缺止损：按方向和比例自动补齐
+                sl_ratio = self.config.get("auto_sl_ratio", 0.03)
+                if direction == "long":
+                    signal_data["params"]["stop_loss"] = round(entry_price * (1 - sl_ratio))
+                elif direction == "short":
+                    signal_data["params"]["stop_loss"] = round(entry_price * (1 + sl_ratio))
+                signal_data["auto_filled"].append("stop_loss")
+                logger.info(f"[自动补齐] stop_loss={signal_data['params']['stop_loss']} (entry={entry_price}, dir={direction}, ratio={sl_ratio})")
             else:
                 signal_data["auto_filled"].append("stop_loss")
 
             tp_list = params.get("take_profit", [])
             if tp_list:
                 signal_data["params"]["take_profit"] = tp_list
+            elif entry_price:
+                # 缺止盈：按方向和比例自动补齐
+                tp_ratio = self.config.get("auto_tp_ratio", 0.05)
+                if direction == "long":
+                    signal_data["params"]["take_profit"] = [round(entry_price * (1 + tp_ratio))]
+                elif direction == "short":
+                    signal_data["params"]["take_profit"] = [round(entry_price * (1 - tp_ratio))]
+                signal_data["auto_filled"].append("take_profit")
+                logger.info(f"[自动补齐] take_profit={signal_data['params']['take_profit']} (entry={entry_price}, dir={direction}, ratio={tp_ratio})")
             else:
                 signal_data["auto_filled"].append("take_profit")
 

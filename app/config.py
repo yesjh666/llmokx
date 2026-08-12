@@ -39,7 +39,9 @@ DEFAULT_CONFIG = {
         "userbot_enabled": True,
         "userbot_config_file": "config/telegram_userbot.json",
         "force_full_close": False,
-        "force_close_threshold": 0.5
+        "force_close_threshold": 0.5,
+        "auto_sl_ratio": 0.03,
+        "auto_tp_ratio": 0.05
     },
     "notification": {
         "enabled": True,
