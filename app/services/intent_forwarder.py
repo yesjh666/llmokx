@@ -145,6 +145,36 @@ class IntentForwarder:
 
         return result
 
+    _price_cache: dict = {}  # {symbol: (price, timestamp)}
+
+    async def _fetch_current_price(self, symbol: str) -> float:
+        """查询当前价格（OKX公共API，缓存60秒）"""
+        import time as _time
+        # 检查缓存
+        cached = self._price_cache.get(symbol)
+        if cached:
+            price, ts = cached
+            if _time.time() - ts < 60:
+                return price
+
+        # OKX ticker API
+        url = f"https://www.okx.com/api/v5/market/ticker?instId={symbol}"
+        try:
+            async with httpx.AsyncClient(timeout=10) as client:
+                resp = await client.get(url)
+            if resp.status_code == 200:
+                data = resp.json()
+                items = data.get("data", [])
+                if items:
+                    price = float(items[0].get("last", 0))
+                    if price > 0:
+                        self._price_cache[symbol] = (price, _time.time())
+                        return price
+            logger.warning(f"现价查询失败 {symbol}: HTTP {resp.status_code}")
+        except Exception as e:
+            logger.warning(f"现价查询异常 {symbol}: {e}")
+        return None
+
     def _adjust_close_ratio(self, intent_result: dict) -> dict:
         """
         调整平仓比例
@@ -221,6 +251,12 @@ class IntentForwarder:
             entry_price = None
             if orders:
                 entry_price = orders[0].get("price")
+
+            # 市价单无 price → 查现价补齐
+            if not entry_price and symbol and symbol != "null":
+                entry_price = await self._fetch_current_price(symbol)
+                if entry_price:
+                    logger.info(f"[现价查询] {symbol} 当前价格={entry_price}")
 
             sl = params.get("stop_loss")
             if sl:
