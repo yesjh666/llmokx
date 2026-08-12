@@ -92,7 +92,7 @@ class IntentForwarder:
         intent_result = self._adjust_close_ratio(intent_result)
 
         # 构建标准JSON信号
-        signal_data = self._build_signal_data(intent_result, text, source_chat)
+        signal_data = await self._build_signal_data(intent_result, text, source_chat)
         msg = json.dumps(signal_data, ensure_ascii=False, indent=2)
 
         # 发送到每个目标（带重试）
@@ -201,7 +201,7 @@ class IntentForwarder:
 
         return intent_result
 
-    def _build_signal_data(
+    async def _build_signal_data(
         self,
         intent_result: dict,
         text: str,
