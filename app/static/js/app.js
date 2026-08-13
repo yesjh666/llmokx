@@ -1069,12 +1069,26 @@ function renderMonitorChats(chatIds, chatNames, chatTopics) {
                         <div style="font-size:12px;color:#6b7280;">Chat ID: ${escapeHtml(id)}</div>
                     </div>
                     <div class="list-item-actions">
+                        <button class="btn btn-sm btn-success" onclick="testMonitorChat('${escapeHtml(id)}')">测试</button>
                         <button class="btn btn-sm btn-default" onclick="editMonitorChat('${escapeHtml(id)}')">编辑</button>
                         <button class="btn btn-sm btn-danger" onclick="removeMonitorChat('${escapeHtml(id)}')">移除</button>
                     </div>
                 </div>
             </div>`;
     }).join('');
+}
+
+async function testMonitorChat(chatId) {
+    toast('正在测试监听群...', 'info');
+    try {
+        const result = await api('/api/monitor/chats/test', {
+            method: 'POST',
+            body: JSON.stringify({ chat_id: chatId }),
+        });
+        toast(result.message, result.success ? 'success' : 'error');
+    } catch (e) {
+        toast('测试失败: ' + e.message, 'error');
+    }
 }
 
 async function saveMonitorConfig() {

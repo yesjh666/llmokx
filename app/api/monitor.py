@@ -167,6 +167,38 @@ async def update_chat(req: UpdateChatRequest):
     return {"success": True, "message": "监听群配置已更新"}
 
 
+@router.post("/chats/test")
+async def test_chat(req: UpdateChatRequest):
+    """测试 Userbot 是否能访问指定监听群"""
+    if not client_manager._connected:
+        return {"success": False, "message": "❌ Userbot 未连接，请先在连接配置中登录"}
+    if not client_manager._authorized:
+        return {"success": False, "message": "❌ Userbot 未授权"}
+
+    chat_id_str = req.chat_id
+    try:
+        chat_id = int(chat_id_str)
+    except ValueError:
+        chat_id = chat_id_str
+
+    try:
+        entity = await client_manager._client.get_entity(chat_id)
+    except Exception:
+        entity = None
+        async for dialog in client_manager._client.iter_dialogs(limit=300):
+            if str(dialog.id) == str(chat_id_str) or dialog.id == chat_id:
+                entity = dialog.entity
+                break
+
+    if entity:
+        title = getattr(entity, "title", None) or getattr(entity, "first_name", "未知")
+        is_forum = getattr(entity, "forum", False)
+        forum_tag = "（论坛群，支持话题）" if is_forum else ""
+        return {"success": True, "message": f"✅ 可访问: {title}{forum_tag}"}
+    else:
+        return {"success": False, "message": "❌ 找不到该群，请确认 Userbot 已加入此群"}
+
+
 @router.post("/chats/remove")
 async def remove_chat(req: RemoveChatRequest):
     """移除监听群"""
