@@ -590,16 +590,22 @@ hr {
 .collapse-header {
     cursor: pointer;
     user-select: none;
+    position: relative;
+    padding-left: 22px;
 }
 
 .collapse-header::before {
-    content: '▼ ';
+    content: '▼';
     font-size: 12px;
     transition: transform 0.2s;
+    position: absolute;
+    left: 0;
+    top: 50%;
+    transform: translateY(-50%);
 }
 
 .collapse-header.collapsed::before {
-    content: '▶ ';
+    content: '▶';
 }
 
 .collapse-body {

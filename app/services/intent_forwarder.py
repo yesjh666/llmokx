@@ -100,6 +100,9 @@ class IntentForwarder:
         errors = []
 
         for target_config in targets:
+            if target_config.get("disabled", False):
+                logger.info(f"[转发跳过] 目标已停用: {target_config.get('description') or target_config.get('target')}")
+                continue
             target_name = target_config.get("target", "")
             sent = False
 

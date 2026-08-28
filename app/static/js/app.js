@@ -812,14 +812,21 @@ async function loadForwardTargets() {
         }
         container.innerHTML = targets.map((t, i) => {
             const topicTag = t.topic_id ? ` <span class="badge badge-info">话题${t.topic_id}</span>` : '';
+            const isDisabled = t.disabled === true;
+            const stateTag = isDisabled ? '<span class="badge badge-danger">已停止</span>' : '<span class="badge badge-success">转发中</span>';
+            const toggleBtn = isDisabled
+                ? `<button class="btn btn-sm btn-success" onclick="toggleForwardTarget(${i})">恢复</button>`
+                : `<button class="btn btn-sm btn-warning" onclick="toggleForwardTarget(${i})">停止</button>`;
+            const opacity = isDisabled ? 'opacity:0.5;' : '';
             return `
-            <div class="list-item">
+            <div class="list-item" style="${opacity}">
                 <div class="list-item-content">
-                    <div><strong>${escapeHtml(t.description || '未命名')}</strong> ${topicTag}</div>
+                    <div><strong>${escapeHtml(t.description || '未命名')}</strong> ${stateTag} ${topicTag}</div>
                     <div style="font-size:12px;color:#6b7280;">通道: ${escapeHtml(t.channel)} | 目标: ${escapeHtml(t.target)}</div>
                 </div>
                 <div class="list-item-actions">
                     <button class="btn btn-sm btn-primary" onclick="testForwardTarget(${i})">测试</button>
+                    ${toggleBtn}
                     <button class="btn btn-sm btn-danger" onclick="deleteForwardTarget(${i})">删除</button>
                 </div>
             </div>`;
@@ -877,6 +884,16 @@ async function deleteForwardTarget(index) {
         loadForwardTargets();
     } catch (e) {
         toast('删除失败: ' + e.message, 'error');
+    }
+}
+
+async function toggleForwardTarget(index) {
+    try {
+        const result = await api(`/api/forward/targets/${index}/toggle`, { method: 'POST' });
+        toast(result.message, 'success');
+        loadForwardTargets();
+    } catch (e) {
+        toast('操作失败: ' + e.message, 'error');
     }
 }
 

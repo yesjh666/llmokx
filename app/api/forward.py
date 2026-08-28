@@ -102,6 +102,20 @@ async def delete_target(index: int):
     raise HTTPException(status_code=404, detail="目标不存在")
 
 
+@router.post("/targets/{index}/toggle")
+async def toggle_target(index: int):
+    """启用/停用转发目标（不删除配置）"""
+    cfg = config.get_section("forward")
+    targets = cfg.get("targets", [])
+    if 0 <= index < len(targets):
+        t = targets[index]
+        t["disabled"] = not t.get("disabled", False)
+        targets[index] = t
+        config.update_section("forward", {"targets": targets})
+        return {"success": True, "message": "已停止转发" if t["disabled"] else "已恢复转发", "disabled": t["disabled"]}
+    raise HTTPException(status_code=404, detail="目标不存在")
+
+
 @router.post("/test")
 async def test_forward(req: ForwardTestRequest):
     """测试转发目标"""
