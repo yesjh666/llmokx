@@ -65,6 +65,7 @@ DEFAULT_CONFIG = {
         "chat_ids": [],
         "chat_names": {},
         "chat_topics": {},
+        "disabled_chats": [],
         "min_message_length": 5,
         "keywords": [],
         "default_context": "无持仓无挂单",

@@ -167,6 +167,27 @@ async def update_chat(req: UpdateChatRequest):
     return {"success": True, "message": "监听群配置已更新"}
 
 
+@router.post("/chats/toggle")
+async def toggle_chat(req: UpdateChatRequest):
+    """启用/停用监听指定群（不删除配置）"""
+    monitor_cfg = config.get_section("monitor")
+    chat_ids = monitor_cfg.get("chat_ids", [])
+    disabled = monitor_cfg.get("disabled_chats", [])
+
+    if req.chat_id not in chat_ids:
+        raise HTTPException(status_code=404, detail="该群不在监听列表中")
+
+    if req.chat_id in disabled:
+        disabled.remove(req.chat_id)
+        msg = "已恢复监听"
+    else:
+        disabled.append(req.chat_id)
+        msg = "已停止监听"
+
+    config.update_section("monitor", {"disabled_chats": disabled})
+    return {"success": True, "message": msg, "disabled": req.chat_id in disabled}
+
+
 @router.post("/chats/test")
 async def test_chat(req: UpdateChatRequest):
     """测试 Userbot 是否能访问指定监听群"""

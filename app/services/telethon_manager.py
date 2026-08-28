@@ -525,12 +525,26 @@ class TelethonClientManager:
     def set_chat_topics(self, topics: dict):
         """设置群话题过滤映射 {chat_id_str: topic_id}"""
         self._chat_topics = {str(k): int(v) for k, v in (topics or {}).items() if v}
+        self._load_disabled_chats()
+
+    def _load_disabled_chats(self):
+        """从配置加载停用的群列表"""
+        from app import config as _cfg
+        monitor_cfg = _cfg.get_section("monitor")
+        self._disabled_chats = set(str(c) for c in monitor_cfg.get("disabled_chats", []))
 
     async def _on_message(self, event):
         """收到消息处理"""
         try:
             chat = await event.get_chat()
             chat_id = str(event.chat_id)
+
+            # 停用检查：该群被停用则跳过
+            if not hasattr(self, "_disabled_chats"):
+                self._load_disabled_chats()
+            if chat_id in self._disabled_chats:
+                return
+
             chat_name = getattr(chat, "title", None) or getattr(chat, "first_name", "未知")
 
             # 话题过滤：如果该群配置了 topic_id，只接收该话题的消息

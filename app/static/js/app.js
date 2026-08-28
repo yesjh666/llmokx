@@ -1045,37 +1045,60 @@ async function loadMonitorConfig() {
         document.getElementById('monitor-msg-dedup').value = cfg.message_dedup_seconds ?? 300;
         document.getElementById('monitor-intent-dedup').value = cfg.intent_dedup_seconds ?? 300;
         document.getElementById('monitor-notify-on-signal').checked = cfg.notify_on_signal !== false;
-        renderMonitorChats(cfg.chat_ids || [], cfg.chat_names || {}, cfg.chat_topics || {});
+        renderMonitorChats(cfg.chat_ids || [], cfg.chat_names || {}, cfg.chat_topics || {}, cfg.disabled_chats || []);
     } catch (e) {
         toast('加载监听配置失败: ' + e.message, 'error');
     }
 }
 
-function renderMonitorChats(chatIds, chatNames, chatTopics) {
+function renderMonitorChats(chatIds, chatNames, chatTopics, disabledChats) {
     const container = document.getElementById('monitor-chats-list');
     if (!chatIds || chatIds.length === 0) {
         container.innerHTML = '<div class="empty-state"><div class="empty-icon">📡</div><div>暂无监听群，请添加</div></div>';
         return;
     }
+    const disabled = new Set(disabledChats || []);
     container.innerHTML = chatIds.map(id => {
         const name = (chatNames || {})[id] || '未命名';
         const topic = (chatTopics || {})[id];
         const topicTag = topic ? `<span class="badge badge-info">话题 ${topic}</span>` : '<span class="badge">全部话题</span>';
+        const isDisabled = disabled.has(id);
+        const stateTag = isDisabled
+            ? '<span class="badge badge-danger">已停止</span>'
+            : '<span class="badge badge-success">监听中</span>';
+        const toggleBtn = isDisabled
+            ? `<button class="btn btn-sm btn-success" onclick="toggleMonitorChat('${escapeHtml(id)}')">恢复</button>`
+            : `<button class="btn btn-sm btn-warning" onclick="toggleMonitorChat('${escapeHtml(id)}')">停止</button>`;
+        const opacity = isDisabled ? 'opacity:0.5;' : '';
         return `
-            <div class="list-item" style="flex-direction:column;align-items:stretch;">
+            <div class="list-item" style="flex-direction:column;align-items:stretch;${opacity}">
                 <div style="display:flex;justify-content:space-between;align-items:center;">
                     <div class="list-item-content">
-                        <strong>${escapeHtml(name)}</strong> ${topicTag}
+                        <strong>${escapeHtml(name)}</strong> ${stateTag} ${topicTag}
                         <div style="font-size:12px;color:#6b7280;">Chat ID: ${escapeHtml(id)}</div>
                     </div>
                     <div class="list-item-actions">
-                        <button class="btn btn-sm btn-success" onclick="testMonitorChat('${escapeHtml(id)}')">测试</button>
+                        <button class="btn btn-sm btn-default" onclick="testMonitorChat('${escapeHtml(id)}')">测试</button>
+                        ${toggleBtn}
                         <button class="btn btn-sm btn-default" onclick="editMonitorChat('${escapeHtml(id)}')">编辑</button>
                         <button class="btn btn-sm btn-danger" onclick="removeMonitorChat('${escapeHtml(id)}')">移除</button>
                     </div>
                 </div>
             </div>`;
     }).join('');
+}
+
+async function toggleMonitorChat(chatId) {
+    try {
+        const result = await api('/api/monitor/chats/toggle', {
+            method: 'POST',
+            body: JSON.stringify({ chat_id: chatId }),
+        });
+        toast(result.message, 'success');
+        loadMonitorConfig();
+    } catch (e) {
+        toast('操作失败: ' + e.message, 'error');
+    }
 }
 
 async function testMonitorChat(chatId) {
