@@ -539,10 +539,11 @@ class TelethonClientManager:
             chat = await event.get_chat()
             chat_id = str(event.chat_id)
 
-            # 停用检查：该群被停用则跳过
-            if not hasattr(self, "_disabled_chats"):
-                self._load_disabled_chats()
-            if chat_id in self._disabled_chats:
+            # 停用检查：每次从配置实时读取（点停止后立即生效）
+            from app import config as _cfg
+            monitor_cfg = _cfg.get_section("monitor")
+            disabled = {str(c) for c in monitor_cfg.get("disabled_chats", [])}
+            if chat_id in disabled:
                 return
 
             chat_name = getattr(chat, "title", None) or getattr(chat, "first_name", "未知")
